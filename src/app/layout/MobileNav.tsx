@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  FileSpreadsheet,
   LayoutDashboard,
   Briefcase,
   Receipt,
@@ -14,6 +15,7 @@ export const MobileNav: React.FC = () => {
   const { isAdmin } = useAuth();
 
   const items = [
+    { label: 'Studio', to: '/studio', icon: FileSpreadsheet },
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
     { label: 'Projects', to: '/projects', icon: Briefcase },
     { label: 'Expenses', to: '/expenses', icon: Receipt },

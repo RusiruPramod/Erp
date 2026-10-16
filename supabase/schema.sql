@@ -38,7 +38,12 @@ create table if not exists public.projects (
   name text not null,
   customer_id uuid not null references public.customers(id) on delete restrict,
   project_date date not null default current_date,
-  price numeric(14, 2) not null default 0.00 check (price >= 0), -- Project Price = Income
+  price numeric(14, 2) not null default 0.00 check (price >= 0),            -- Client price = invoice total
+  outsourcer_name text,                                                       -- Who did the work (optional)
+  outsourcer_cost numeric(14, 2) not null default 0.00 check (outsourcer_cost >= 0), -- What we pay outsourcer
+  broker_name text,                                                            -- Broker who brought client (optional)
+  broker_commission numeric(14, 2) not null default 0.00 check (broker_commission >= 0), -- What we pay broker
+  -- my_profit = price - outsourcer_cost - broker_commission (calculated in SQL view)
   status text not null default 'active' check (status in ('active', 'completed', 'cancelled')),
   notes text,
   created_by uuid references auth.users(id),
@@ -424,15 +429,20 @@ select
   c.company as customer_company,
   c.phone as customer_phone,
   p.project_date,
-  p.price as income,
-  coalesce(ip.total_paid, 0.00) as total_paid,
-  (p.price - coalesce(ip.total_paid, 0.00)) as balance,
-  coalesce(e.total_expenses, 0.00) as total_expenses,
-  (p.price - coalesce(e.total_expenses, 0.00)) as net_profit,
-  case 
-    when p.price > 0 then round(((p.price - coalesce(e.total_expenses, 0.00)) / p.price * 100), 2)
+  p.price as income,                                      -- Client Price (invoice total)
+  p.outsourcer_name,
+  p.outsourcer_cost,                                      -- What we pay outsourcer
+  p.broker_name,
+  p.broker_commission,                                    -- What we pay broker
+  (p.price - p.outsourcer_cost - p.broker_commission) as my_profit,  -- Net profit for us
+  case
+    when p.price > 0 then round(((p.price - p.outsourcer_cost - p.broker_commission) / p.price * 100), 2)
     else 0.00
   end as margin_pct,
+  coalesce(ip.total_paid, 0.00) as total_paid,
+  (p.price - coalesce(ip.total_paid, 0.00)) as balance,
+  coalesce(e.total_expenses, 0.00) as total_ad_expenses,  -- Additional ad/expenses logged
+  (p.price - p.outsourcer_cost - p.broker_commission - coalesce(e.total_expenses, 0.00)) as net_profit,
   p.status,
   p.notes,
   p.created_at,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  FileSpreadsheet,
   LayoutDashboard,
   Briefcase,
   Receipt,
@@ -26,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { isAdmin } = useAuth();
 
   const navItems = [
+    { label: 'Invoice Studio', to: '/studio', icon: FileSpreadsheet },
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
     { label: 'Projects', to: '/projects', icon: Briefcase },
     { label: 'Expenses', to: '/expenses', icon: Receipt },

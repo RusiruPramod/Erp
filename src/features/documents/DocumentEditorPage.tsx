@@ -101,7 +101,7 @@ export const DocumentEditorPage: React.FC = () => {
       if (!isSupabaseConfigured) return [];
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, customer_id, price, notes')
+        .select('id, name, customer_id, price, outsourcer_cost, broker_commission, notes')
         .order('name', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -193,7 +193,7 @@ export const DocumentEditorPage: React.FC = () => {
     }
   }, [existingDoc, isNew, defaultProjectId, projects, settings]);
 
-  // When project changes in dropdown, auto-fill customer and initial item
+  // When project changes in dropdown, auto-fill customer + item with CLIENT price (invoice total)
   const handleProjectChange = (newProjId: string) => {
     setProjectId(newProjId);
     const p = projects.find(item => item.id === newProjId);
@@ -203,9 +203,9 @@ export const DocumentEditorPage: React.FC = () => {
         setItems([
           {
             task: p.name,
-            description: p.notes || 'Implementation & service deliverable',
+            description: p.notes || 'Service & implementation deliverable',
             hours: '',
-            price: String(p.price),
+            price: String(p.price), // client price = invoice total
             show_included: false,
           },
         ]);

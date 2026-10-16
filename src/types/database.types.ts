@@ -79,7 +79,11 @@ export interface Database {
           name: string;
           customer_id: string;
           project_date: string;
-          price: number;
+          price: number;              // Client price = invoice total
+          outsourcer_name: string | null;
+          outsourcer_cost: number;    // What we pay outsourcer
+          broker_name: string | null;
+          broker_commission: number;  // What we pay broker
           status: 'active' | 'completed' | 'cancelled';
           notes: string | null;
           created_by: string | null;
@@ -92,6 +96,10 @@ export interface Database {
           customer_id: string;
           project_date?: string;
           price?: number;
+          outsourcer_name?: string | null;
+          outsourcer_cost?: number;
+          broker_name?: string | null;
+          broker_commission?: number;
           status?: 'active' | 'completed' | 'cancelled';
           notes?: string | null;
           created_by?: string | null;
@@ -104,6 +112,10 @@ export interface Database {
           customer_id?: string;
           project_date?: string;
           price?: number;
+          outsourcer_name?: string | null;
+          outsourcer_cost?: number;
+          broker_name?: string | null;
+          broker_commission?: number;
           status?: 'active' | 'completed' | 'cancelled';
           notes?: string | null;
           created_by?: string | null;

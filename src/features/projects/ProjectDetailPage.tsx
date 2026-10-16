@@ -21,7 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Tabs } from '../../components/ui/Tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { TableSkeleton } from '../../components/ui/Skeleton';
+import { Skeleton, TableSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { getStatusBadge } from '../../components/ui/Badge';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -250,42 +250,59 @@ export const ProjectDetailPage: React.FC = () => {
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* KPI Strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* KPI Strip - Pricing Breakdown */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Client Price */}
             <Card className="border-l-4 border-l-[#FF8C00]">
               <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Project Price (Income)
+                Client Price
               </span>
               <p className="text-lg md:text-xl font-black text-neutral-900 font-mono mt-1">
                 {formatLKR(project.income)}
               </p>
-              <p className="text-[11px] text-neutral-400 mt-0.5">Recorded at project kickoff</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">Invoice total to client</p>
             </Card>
 
-            <Card className="border-l-4 border-l-neutral-800">
+            {/* Outsourcer Cost */}
+            <Card className="border-l-4 border-l-blue-500">
               <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Total Expenses
+                Outsourcer
               </span>
-              <p className="text-lg md:text-xl font-black text-neutral-900 font-mono mt-1">
-                {formatLKR(project.total_expenses)}
+              <p className="text-lg md:text-xl font-black text-blue-600 font-mono mt-1">
+                {formatLKR(project.outsourcer_cost ?? 0)}
               </p>
               <p className="text-[11px] text-neutral-400 mt-0.5">
-                {expenses.length} ad / service entries
+                {project.outsourcer_name || 'Not assigned'}
               </p>
             </Card>
 
+            {/* Broker Commission */}
+            <Card className="border-l-4 border-l-purple-500">
+              <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                Broker
+              </span>
+              <p className="text-lg md:text-xl font-black text-purple-600 font-mono mt-1">
+                {formatLKR(project.broker_commission ?? 0)}
+              </p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">
+                {project.broker_name || 'No broker'}
+              </p>
+            </Card>
+
+            {/* My Profit */}
             <Card className="border-l-4 border-l-emerald-500">
               <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Net Profit
+                My Profit
               </span>
-              <p className="text-lg md:text-xl font-black text-emerald-600 font-mono mt-1">
-                {formatLKR(project.net_profit)}
+              <p className={`text-lg md:text-xl font-black font-mono mt-1 ${
+                (project.my_profit ?? project.net_profit) < 0 ? 'text-red-600' : 'text-emerald-600'
+              }`}>
+                {formatLKR(project.my_profit ?? project.net_profit)}
               </p>
-              <p className="text-[11px] text-neutral-400 mt-0.5">
-                Margin: {project.margin_pct}%
-              </p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">Margin: {project.margin_pct}%</p>
             </Card>
 
+            {/* Balance Due */}
             <Card className="border-l-4 border-l-amber-500">
               <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
                 Balance Due
