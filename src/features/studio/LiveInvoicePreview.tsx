@@ -91,13 +91,20 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#333333] p-3 md:p-5 overflow-y-auto rounded-xl">
-      {/* Top Toolbar */}
-      <div className="no-print flex flex-wrap items-center justify-between gap-2 mb-4 bg-neutral-900/90 text-white px-4 py-2.5 rounded-lg shadow-md border border-neutral-700">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Live Preview:</span>
-          <span className="text-sm font-bold text-white font-mono">{project.invoiceNumber}</span>
+    <div className="flex flex-col h-full bg-[#F3F4F6] p-3 md:p-6 overflow-y-auto">
+      {/* Top Toolbar (Clean, modern light bar) */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-2 mb-5 bg-white/95 backdrop-blur-sm text-neutral-800 px-4 py-2.5 rounded-xl shadow-xs border border-neutral-200/90">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+            Invoice Preview
+          </span>
+          <span className="text-xs font-bold text-neutral-900 font-mono bg-neutral-100 border border-neutral-200/80 px-2 py-0.5 rounded">
+            {project.invoiceNumber}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -105,8 +112,8 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
             size="sm"
             variant="outline"
             onClick={handleCopySummary}
-            className="bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700 h-8 text-xs"
-            leftIcon={copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            className="bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50 h-8 text-xs font-medium"
+            leftIcon={copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
           >
             {copied ? 'Copied' : 'Copy'}
           </Button>
@@ -115,7 +122,7 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
             size="sm"
             variant="outline"
             onClick={handlePrint}
-            className="bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700 h-8 text-xs"
+            className="bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50 h-8 text-xs font-medium"
             leftIcon={<Printer className="w-3.5 h-3.5" />}
           >
             Print / PDF
@@ -124,7 +131,7 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
           <Button
             size="sm"
             onClick={handleWhatsApp}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs font-medium"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs h-8 text-xs font-medium"
             leftIcon={<MessageCircle className="w-3.5 h-3.5" />}
           >
             WhatsApp
@@ -132,12 +139,12 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
         </div>
       </div>
 
-      {/* Invoice Document Canvas (A4 Aspect Ratio Container) */}
-      <div className="flex justify-center flex-1 pb-6">
+      {/* Invoice Document Canvas (Clean A4 Paper with natural subtle shadow) */}
+      <div className="flex justify-center flex-1 pb-8">
         <div
           ref={printRef}
           id="printable-invoice"
-          className="print-container w-full max-w-[794px] min-h-[1050px] bg-white text-[#111111] p-10 md:p-14 shadow-2xl rounded-sm flex flex-col justify-between select-text"
+          className="print-container w-full max-w-[794px] min-h-[1050px] bg-white text-[#111111] p-10 md:p-14 shadow-[0_4px_24px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] border border-neutral-200/70 rounded-md flex flex-col justify-between select-text"
           style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
         >
           {/* Main Top Content */}
@@ -205,21 +212,21 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
               ) : null}
             </div>
 
-            {/* Line Item Table (Bordered Box matching the screenshot) */}
-            <div className="border border-neutral-900 mb-6">
+            {/* Line Item Table (Matching the screenshot clean rules) */}
+            <div className="mb-6">
               {/* Table Header */}
-              <div className="flex border-b border-neutral-900 bg-neutral-50/50 text-[11px] font-bold text-neutral-900 uppercase">
-                <div className="flex-1 p-2.5 px-4 border-r border-neutral-900">
+              <div className="flex border-t border-b border-neutral-900 py-2.5 text-[11px] font-bold text-neutral-900 uppercase">
+                <div className="flex-1 pr-4 border-r border-neutral-900">
                   DESCRIPTION
                 </div>
-                <div className="w-36 p-2.5 px-4 text-right">
+                <div className="w-36 pl-4 text-right">
                   AMOUNT (LKR)
                 </div>
               </div>
 
               {/* Table Body Line */}
-              <div className="flex min-h-[140px] border-b border-neutral-900">
-                <div className="flex-1 p-4 border-r border-neutral-900 text-xs">
+              <div className="flex min-h-[140px] border-b border-neutral-900 py-4">
+                <div className="flex-1 pr-4 border-r border-neutral-900 text-xs">
                   <div className="font-bold text-neutral-950 text-sm mb-1.5">
                     {project.serviceTitle || project.projectName || 'Project Service Implementation'}
                   </div>
@@ -228,7 +235,7 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
                       'Configuring project deliverables as per client specification and agreed quotation. Includes technical development, testing, quality assurance, system setup, and handover walkthrough.'}
                   </p>
                 </div>
-                <div className="w-36 p-4 text-right font-bold text-sm text-neutral-950 font-mono">
+                <div className="w-36 pl-4 text-right font-bold text-sm text-neutral-950 font-mono">
                   {Number(project.total || 0).toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -237,11 +244,11 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
               </div>
 
               {/* Subtotal Row */}
-              <div className="flex border-b border-neutral-900 text-xs font-semibold">
-                <div className="flex-1 p-2 px-4 border-r border-neutral-900 text-right">
+              <div className="flex border-b border-neutral-900 py-2 text-xs font-semibold">
+                <div className="flex-1 pr-4 border-r border-neutral-900 text-right">
                   Subtotal
                 </div>
-                <div className="w-36 p-2 px-4 text-right font-mono font-bold">
+                <div className="w-36 pl-4 text-right font-mono font-bold">
                   {Number(project.total || 0).toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -250,11 +257,11 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
               </div>
 
               {/* TOTAL DUE Row */}
-              <div className="flex text-sm font-black bg-neutral-100/60">
-                <div className="flex-1 p-3 px-4 border-r border-neutral-900 text-right uppercase tracking-wider">
+              <div className="flex py-3 text-sm font-black">
+                <div className="flex-1 pr-4 border-r border-neutral-900 text-right uppercase tracking-wider">
                   TOTAL DUE
                 </div>
-                <div className="w-36 p-3 px-4 text-right font-mono text-neutral-950 font-bold whitespace-nowrap">
+                <div className="w-36 pl-4 text-right font-mono text-neutral-950 font-bold whitespace-nowrap">
                   LKR {Number(project.total || 0).toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,

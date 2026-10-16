@@ -581,7 +581,7 @@ export const QuickStudioPage: React.FC = () => {
 
         {/* Right Half: Live CodeCrew Invoice Document Preview */}
         <div
-          className={`flex-1 flex flex-col bg-[#2B2B2B] overflow-hidden ${
+          className={`flex-1 flex flex-col bg-[#F3F4F6] border-l border-neutral-200 overflow-hidden ${
             activeTabMobile === 'sheet' ? 'hidden lg:flex' : 'flex'
           }`}
         >
