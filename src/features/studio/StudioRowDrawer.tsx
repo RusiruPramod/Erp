@@ -4,7 +4,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { Button } from '../../components/ui/Button';
-import { Save, User, Building, Phone, Mail, MapPin, DollarSign, FileText } from 'lucide-react';
+import { Save, User, Building, Phone, Mail, MapPin, DollarSign, FileText, Printer } from 'lucide-react';
 import { formatLKR } from '../../lib/formatters';
 
 interface StudioRowDrawerProps {
@@ -12,6 +12,7 @@ interface StudioRowDrawerProps {
   onClose: () => void;
   row: StudioProjectRow | null;
   onSave: (updated: StudioProjectRow) => void;
+  onPrint?: (updated: StudioProjectRow) => void;
 }
 
 export const StudioRowDrawer: React.FC<StudioRowDrawerProps> = ({
@@ -19,6 +20,7 @@ export const StudioRowDrawer: React.FC<StudioRowDrawerProps> = ({
   onClose,
   row,
   onSave,
+  onPrint,
 }) => {
   if (!row) return null;
 
@@ -235,13 +237,30 @@ export const StudioRowDrawer: React.FC<StudioRowDrawerProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border">
           <Button variant="outline" type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" leftIcon={<Save className="w-4 h-4" />}>
-            Apply Changes
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {onPrint && (
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  onSave(formState);
+                  onPrint(formState);
+                }}
+                className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-medium"
+                leftIcon={<Printer className="w-4 h-4 text-[#FF8C00]" />}
+              >
+                Print Invoice
+              </Button>
+            )}
+            <Button variant="primary" type="submit" leftIcon={<Save className="w-4 h-4" />}>
+              Save Changes
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
