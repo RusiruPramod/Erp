@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   FileSpreadsheet,
-  LayoutDashboard,
   Briefcase,
   Receipt,
   FileText,
@@ -16,7 +15,6 @@ export const MobileNav: React.FC = () => {
 
   const items = [
     { label: 'Studio', to: '/studio', icon: FileSpreadsheet },
-    { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
     { label: 'Projects', to: '/projects', icon: Briefcase },
     { label: 'Expenses', to: '/expenses', icon: Receipt },
     { label: 'Documents', to: '/documents', icon: FileText },

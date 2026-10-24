@@ -19,11 +19,6 @@ const QuickStudioPage = lazy(() =>
     default: m.QuickStudioPage,
   }))
 );
-const DashboardPage = lazy(() =>
-  import('../features/dashboard/DashboardPage').then(m => ({
-    default: m.DashboardPage,
-  }))
-);
 const ProjectsListPage = lazy(() =>
   import('../features/projects/ProjectsListPage').then(m => ({
     default: m.ProjectsListPage,
@@ -132,11 +127,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'dashboard',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <DashboardPage />
-          </Suspense>
-        ),
+        element: <Navigate to="/studio" replace />,
       },
       {
         path: 'projects',
@@ -222,6 +213,6 @@ export const router = createBrowserRouter([
   // Catch-all route
   {
     path: '*',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/studio" replace />,
   },
 ]);

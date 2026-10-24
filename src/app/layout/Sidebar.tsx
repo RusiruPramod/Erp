@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   FileSpreadsheet,
-  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { label: 'Studio', to: '/studio', icon: FileSpreadsheet },
-    { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   ];
 
   return (
