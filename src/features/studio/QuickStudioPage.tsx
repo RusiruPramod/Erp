@@ -245,15 +245,6 @@ export const QuickStudioPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant="outline"
-            onClick={handleNewInvoice}
-            className="text-xs font-medium border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-          >
-            New
-          </Button>
-          <Button
-            size="sm"
             onClick={handleSave}
             isLoading={isSaving}
             className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
