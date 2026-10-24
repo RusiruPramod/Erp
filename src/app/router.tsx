@@ -126,86 +126,8 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'dashboard',
+        path: '*',
         element: <Navigate to="/studio" replace />,
-      },
-      {
-        path: 'projects',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ProjectsListPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'projects/:id',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ProjectDetailPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'customers',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <CustomersListPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'expenses',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ExpensesPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'ledger',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <LedgerPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'documents',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <DocumentsListPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'documents/:id',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <DocumentEditorPage />
-          </Suspense>
-        ),
-      },
-
-      // Admin Only Routes
-      {
-        path: 'team',
-        element: (
-          <RequireAdmin>
-            <Suspense fallback={<PageLoader />}>
-              <TeamPage />
-            </Suspense>
-          </RequireAdmin>
-        ),
-      },
-      {
-        path: 'settings',
-        element: (
-          <RequireAdmin>
-            <Suspense fallback={<PageLoader />}>
-              <SettingsPage />
-            </Suspense>
-          </RequireAdmin>
-        ),
       },
     ],
   },

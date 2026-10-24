@@ -229,7 +229,7 @@ export const QuickStudioPage: React.FC = () => {
 
   // ─── Render ──────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] -m-4 md:-m-8 bg-[#EEF1F5] overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-[#EEF1F5] overflow-hidden">
       {/* ── Top Header Bar ───────────────────────────────── */}
       <header className="bg-white border-b border-neutral-200 px-5 py-3 flex items-center justify-between shrink-0 z-20 shadow-xs">
         <div className="flex items-center gap-3">
