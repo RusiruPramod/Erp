@@ -1,7 +1,16 @@
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
 export interface StudioProjectRow {
   id: string;
   rowNumber?: number;
   date: string;
+  dueDate?: string;
   projectName: string;
   
   // Client / Billing Information
@@ -18,7 +27,13 @@ export interface StudioProjectRow {
   serviceTitle: string;
   serviceDescription: string;
   
-  // Profit / Financial Distribution
+  // Itemized line items
+  items?: InvoiceItem[];
+  subtotal?: number;
+  discount?: number;
+  tax?: number;
+
+  // Profit / Financial Distribution (CodeCrew ERP core)
   brokerName?: string;
   brokerFee: number;
   
@@ -28,7 +43,8 @@ export interface StudioProjectRow {
   myProfit: number;
   total: number;
   
-  // Status
+  // Status & Notes
   status: 'draft' | 'sent' | 'paid';
   notes?: string;
 }
+

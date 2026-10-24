@@ -1,638 +1,763 @@
-import React, { useState, useEffect } from 'react';
-import { StudioProjectRow } from './types';
-import { StudioRowDrawer } from './StudioRowDrawer';
-import { InvoicePreviewModal } from './InvoicePreviewModal';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { StudioProjectRow, InvoiceItem } from './types';
 import {
   Plus,
   Save,
-  FileSpreadsheet,
   FileText,
-  Search,
   Trash2,
-  Edit2,
-  TrendingUp,
-  DollarSign,
-  Users,
-  Building,
-  CheckCircle2,
-  Share2,
-  Printer,
+  ChevronDown,
   ChevronRight,
-  RefreshCw,
+  Printer,
+  Copy,
+  Check,
+  MessageCircle,
   ExternalLink,
   Eye,
+  X,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { formatLKR, formatDate } from '../../lib/formatters';
+import { formatLKR } from '../../lib/formatters';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'codecrew_studio_rows_v2';
 
-const INITIAL_ROWS: StudioProjectRow[] = [
-  {
-    id: 'row-1',
-    rowNumber: 1,
-    date: '2026-10-15',
-    projectName: 'Timer Pcb',
-    clientCompany: 'InterMax (Pvt) Ltd.',
-    clientName: 'Shamshard Marikkar',
-    clientAttn: 'Shamshard Marikkar (Managing Director)',
-    clientAddress: '435/2, Dutugemunu Rd, Koswatte\nBattaramulla, Sri Lanka.',
-    clientPhone: '+94 77 207 8626',
-    clientEmail: 'intermaxsrilanka@gmail.com',
-    invoiceNumber: 'CC-INV-2026-001',
-    refQuotation: 'CC-GWS-SYNC-2026-001',
-    serviceTitle: 'Google Workspace File Sync Implementation',
-    serviceDescription:
-      'Configuring common drive for enabling shared folder access among 3 laptops. Includes technical review, user requirement gathering, architecture planning, system configuration, and handover walkthrough. One-time fixed fee as per agreed quotation.',
-    brokerName: 'Hasangi',
-    brokerFee: 5000,
-    outsourceWorkerName: 'sahan',
-    outsourceWorkerFee: 12500,
-    myProfit: 12500,
-    total: 30000,
-    status: 'draft',
-  },
-  {
-    id: 'row-2',
-    rowNumber: 2,
-    date: '2026-10-16',
-    projectName: 'safty helmet',
-    clientCompany: 'SafeTech Lanka Ltd.',
-    clientName: 'Nimal Fernando',
-    clientAttn: 'Nimal Fernando (Project Lead)',
-    clientAddress: 'No. 28, Industrial Zone, Peliyagoda, Sri Lanka.',
-    clientPhone: '+94 71 889 9123',
-    clientEmail: 'info@safetech.lk',
-    invoiceNumber: 'CC-INV-2026-002',
-    refQuotation: 'CC-SAF-2026-002',
-    serviceTitle: 'Safety Helmet Sensor Firmware & PCB Assembly',
-    serviceDescription:
-      'Firmware coding and hardware sensor calibration for safety helmet prototype. Tested with accelerometer alerts and buzzer integration.',
-    brokerName: '',
-    brokerFee: 0,
-    outsourceWorkerName: 'malaka',
-    outsourceWorkerFee: 5000,
-    myProfit: 5000,
-    total: 10000,
-    status: 'draft',
-  },
-];
+// Generate a unique ID
+const uid = () => `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+// Default blank item
+const blankItem = (): InvoiceItem => ({
+  id: uid(),
+  description: '',
+  quantity: 1,
+  unitPrice: 0,
+  amount: 0,
+});
+
+// Default blank project
+const blankProject = (): StudioProjectRow => ({
+  id: `row-${Date.now()}`,
+  rowNumber: 1,
+  date: new Date().toISOString().split('T')[0],
+  projectName: '',
+  clientName: '',
+  clientCompany: '',
+  clientAttn: '',
+  clientAddress: '',
+  clientPhone: '',
+  clientEmail: '',
+  invoiceNumber: 'INV-001',
+  refQuotation: '',
+  serviceTitle: '',
+  serviceDescription: '',
+  items: [blankItem()],
+  subtotal: 0,
+  discount: 0,
+  tax: 0,
+  brokerName: '',
+  brokerFee: 0,
+  outsourceWorkerName: '',
+  outsourceWorkerFee: 0,
+  myProfit: 0,
+  total: 0,
+  status: 'draft',
+  notes: '',
+});
+
+// ─── Main Component ──────────────────────────────────────────
 export const QuickStudioPage: React.FC = () => {
-  // Load rows from local storage or fallback to INITIAL_ROWS
-  const [rows, setRows] = useState<StudioProjectRow[]>(() => {
+  // Load from localStorage or start fresh
+  const [project, setProject] = useState<StudioProjectRow>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        // Support old array format — take first row
+        const row = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (row && row.id) {
+          // Ensure items array exists
+          if (!row.items || !Array.isArray(row.items) || row.items.length === 0) {
+            row.items = [blankItem()];
+          }
+          return row;
+        }
       }
     } catch (e) {
-      console.warn('Failed to parse saved studio rows', e);
+      console.warn('Failed to load saved invoice', e);
     }
-    return INITIAL_ROWS;
+    return blankProject();
   });
 
-  const [selectedId, setSelectedId] = useState<string>(rows[0]?.id || 'row-1');
-  const [editingRow, setEditingRow] = useState<StudioProjectRow | null>(null);
-  const [previewModalRow, setPreviewModalRow] = useState<StudioProjectRow | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [showAdditional, setShowAdditional] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Keep localStorage updated
+  // Persist to localStorage on every change
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
     } catch (e) {
-      console.error('Failed to save studio rows', e);
+      console.error('Failed to save', e);
     }
-  }, [rows]);
+  }, [project]);
 
-  const selectedProject = rows.find(r => r.id === selectedId) || rows[0];
-
-  // Live update cell in the spreadsheet
-  const handleCellChange = (id: string, field: keyof StudioProjectRow, val: any) => {
-    setRows(prevRows =>
-      prevRows.map(row => {
-        if (row.id !== id) return row;
-
-        const updated = { ...row, [field]: val };
-
-        // Real-time auto-calculation of total or profit
-        if (field === 'brokerFee' || field === 'outsourceWorkerFee' || field === 'myProfit') {
-          const b = field === 'brokerFee' ? Number(val) || 0 : Number(row.brokerFee) || 0;
-          const o = field === 'outsourceWorkerFee' ? Number(val) || 0 : Number(row.outsourceWorkerFee) || 0;
-          const p = field === 'myProfit' ? Number(val) || 0 : Number(row.myProfit) || 0;
-          updated.total = b + o + p;
-        } else if (field === 'total') {
-          const t = Number(val) || 0;
-          const b = Number(row.brokerFee) || 0;
-          const o = Number(row.outsourceWorkerFee) || 0;
-          updated.myProfit = Math.max(0, t - b - o);
-        } else if (field === 'projectName' && !row.serviceTitle) {
-          updated.serviceTitle = val;
-        }
-
-        return updated;
-      })
-    );
-  };
-
-  // Add new row with today's date
-  const handleAddRow = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const newSeq = rows.length + 1;
-    const invNum = `CC-INV-2026-${String(newSeq).padStart(3, '0')}`;
-
-    const newRow: StudioProjectRow = {
-      id: `row-${Date.now()}`,
-      rowNumber: newSeq,
-      date: today,
-      projectName: `New Project ${newSeq}`,
-      clientCompany: 'Client Company (Pvt) Ltd.',
-      clientName: 'Contact Person',
-      clientAttn: 'Managing Director',
-      clientAddress: 'Colombo, Sri Lanka',
-      clientPhone: '+94 77 000 0000',
-      clientEmail: 'contact@example.com',
-      invoiceNumber: invNum,
-      refQuotation: `CC-QUO-2026-${String(newSeq).padStart(3, '0')}`,
-      serviceTitle: 'Software & Technical Services',
-      serviceDescription:
-        'Technical implementation, requirement gathering, system architecture, configuration and testing as agreed.',
-      brokerName: '',
-      brokerFee: 0,
-      outsourceWorkerName: '',
-      outsourceWorkerFee: 0,
-      myProfit: 15000,
-      total: 15000,
-      status: 'draft',
-    };
-
-    setRows(prev => [newRow, ...prev]);
-    setSelectedId(newRow.id);
-    toast.success('Added new project row to spreadsheet');
-  };
-
-  // Delete row
-  const handleDeleteRow = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (rows.length <= 1) {
-      toast.error('At least one project row must remain in the sheet');
-      return;
-    }
-    const remaining = rows.filter(r => r.id !== id);
-    setRows(remaining);
-    if (selectedId === id) {
-      setSelectedId(remaining[0].id);
-    }
-    toast.info('Row removed');
-  };
-
-  // Sync to database if Supabase is connected
-  const handleSyncToDatabase = async () => {
-    setIsSyncing(true);
-    try {
-      if (isSupabaseConfigured) {
-        for (const r of rows) {
-          // 1. Ensure customer
-          let customerId = '00000000-0000-0000-0000-000000000005';
-          const { data: custData } = await supabase
-            .from('customers')
-            .select('id')
-            .eq('name', r.clientCompany || r.clientName)
-            .maybeSingle();
-
-          if (custData) {
-            customerId = custData.id;
-          }
-
-          // 2. Upsert project
-          await supabase.from('projects').upsert(
-            {
-              name: r.projectName,
-              customer_id: customerId,
-              project_date: r.date,
-              price: r.total,
-              outsourcer_name: r.outsourceWorkerName || null,
-              outsourcer_cost: r.outsourceWorkerFee || 0,
-              broker_name: r.brokerName || null,
-              broker_commission: r.brokerFee || 0,
-              status: 'active',
-              notes: r.serviceDescription,
-            },
-            { onConflict: 'name' }
-          );
-        }
-        toast.success('Successfully synced sheet projects to Supabase ERP!');
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-        toast.success('Saved spreadsheet and invoices to local ERP storage!');
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Failed to sync to database');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  // Calculate summary metrics
-  const totalRevenue = rows.reduce((acc, r) => acc + (Number(r.total) || 0), 0);
-  const totalProfit = rows.reduce((acc, r) => acc + (Number(r.myProfit) || 0), 0);
-  const totalOutsource = rows.reduce((acc, r) => acc + (Number(r.outsourceWorkerFee) || 0), 0);
-  const totalBroker = rows.reduce((acc, r) => acc + (Number(r.brokerFee) || 0), 0);
-
-  const filteredRows = rows.filter(
-    r =>
-      r.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.clientCompany && r.clientCompany.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (r.outsourceWorkerName && r.outsourceWorkerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (r.brokerName && r.brokerName.toLowerCase().includes(searchTerm.toLowerCase()))
+  // ─── Field Updaters ──────────────────────────────────────
+  const updateField = useCallback(
+    (field: keyof StudioProjectRow, value: any) => {
+      setProject(prev => ({ ...prev, [field]: value }));
+    },
+    []
   );
 
+  // ─── Items Logic ─────────────────────────────────────────
+  const updateItem = useCallback(
+    (itemId: string, field: keyof InvoiceItem, value: any) => {
+      setProject(prev => {
+        const items = (prev.items || []).map(item => {
+          if (item.id !== itemId) return item;
+          const updated = { ...item, [field]: value };
+          // Auto-calculate amount
+          if (field === 'quantity' || field === 'unitPrice') {
+            const qty = field === 'quantity' ? Number(value) || 0 : Number(item.quantity) || 0;
+            const price = field === 'unitPrice' ? Number(value) || 0 : Number(item.unitPrice) || 0;
+            updated.amount = qty * price;
+          }
+          return updated;
+        });
+        // Recalculate totals
+        const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+        const discount = Number(prev.discount) || 0;
+        const tax = Number(prev.tax) || 0;
+        const total = subtotal - discount + tax;
+        return { ...prev, items, subtotal, total };
+      });
+    },
+    []
+  );
+
+  const addItem = useCallback(() => {
+    setProject(prev => ({
+      ...prev,
+      items: [...(prev.items || []), blankItem()],
+    }));
+  }, []);
+
+  const removeItem = useCallback((itemId: string) => {
+    setProject(prev => {
+      const items = (prev.items || []).filter(i => i.id !== itemId);
+      if (items.length === 0) items.push(blankItem());
+      const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      const discount = Number(prev.discount) || 0;
+      const tax = Number(prev.tax) || 0;
+      const total = subtotal - discount + tax;
+      return { ...prev, items, subtotal, total };
+    });
+  }, []);
+
+  // ─── Save / Sync ─────────────────────────────────────────
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+      if (isSupabaseConfigured) {
+        let customerId = '00000000-0000-0000-0000-000000000005';
+        const { data: custData } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('name', project.clientCompany || project.clientName)
+          .maybeSingle();
+        if (custData) customerId = custData.id;
+        await supabase.from('projects').upsert(
+          {
+            name: project.projectName,
+            customer_id: customerId,
+            project_date: project.date,
+            price: project.total,
+            outsourcer_name: project.outsourceWorkerName || null,
+            outsourcer_cost: project.outsourceWorkerFee || 0,
+            broker_name: project.brokerName || null,
+            broker_commission: project.brokerFee || 0,
+            status: 'active',
+            notes: project.serviceDescription,
+          },
+          { onConflict: 'name' }
+        );
+        toast.success('Invoice synced to database!');
+      } else {
+        toast.success('Invoice saved locally!');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNewInvoice = () => {
+    setProject(blankProject());
+    toast.info('New blank invoice created');
+  };
+
+  // ─── Print ───────────────────────────────────────────────
+  const handlePrint = () => window.print();
+
+  const handleCopy = () => {
+    const text = `INVOICE ${project.invoiceNumber} | ${project.projectName || 'Untitled'} | Total: Rs. ${(project.total || 0).toFixed(2)}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Invoice summary copied');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Format date for preview
+  const formattedDate = (() => {
+    try {
+      if (!project.date) return '';
+      const d = new Date(project.date);
+      if (isNaN(d.getTime())) return project.date;
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch {
+      return project.date;
+    }
+  })();
+
+  const items = project.items || [blankItem()];
+  const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const discount = Number(project.discount) || 0;
+  const tax = Number(project.tax) || 0;
+  const grandTotal = subtotal - discount + tax;
+
+  // ─── Render ──────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] -m-4 md:-m-8 bg-[#F4F4F5] overflow-hidden">
-      {/* Top Banner: Quick Financial Indicators & Actions */}
-      <header className="bg-white border-b border-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-xs shrink-0 z-10">
+    <div className="flex flex-col h-[calc(100vh-5rem)] -m-4 md:-m-8 bg-[#EEF1F5] overflow-hidden">
+      {/* ── Top Header Bar ───────────────────────────────── */}
+      <header className="bg-white border-b border-neutral-200 px-5 py-3 flex items-center justify-between shrink-0 z-20 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-              <FileSpreadsheet className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-neutral-900 leading-none flex items-center gap-2">
-                Project & Invoice Studio
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  Spreadsheet Flow
-                </span>
-              </h1>
-              <p className="text-[11px] text-neutral-500 mt-0.5">
-                Fast Google Sheets data entry • Double-click row for details • Click eye icon for Print & PDF
-              </p>
-            </div>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white shadow-md">
+            <FileText className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-neutral-900 leading-tight">Invoice Studio</h1>
+            <p className="text-[11px] text-neutral-400 font-medium">Simple editor · Live preview</p>
           </div>
         </div>
 
-        {/* Financial KPI chips */}
-        <div className="hidden xl:flex items-center gap-4 text-xs bg-neutral-50 px-3 py-1.5 rounded-lg border border-neutral-200">
-          <div>
-            <span className="text-neutral-500">Revenue:</span>{' '}
-            <span className="font-bold text-neutral-900 font-mono">{formatLKR(totalRevenue)}</span>
-          </div>
-          <div className="h-4 w-px bg-neutral-300"></div>
-          <div>
-            <span className="text-neutral-500">My Profit:</span>{' '}
-            <span className="font-bold text-emerald-700 font-mono">{formatLKR(totalProfit)}</span>
-          </div>
-          <div className="h-4 w-px bg-neutral-300"></div>
-          <div>
-            <span className="text-neutral-500">Outsource:</span>{' '}
-            <span className="font-bold text-blue-700 font-mono">{formatLKR(totalOutsource)}</span>
-          </div>
-          <div className="h-4 w-px bg-neutral-300"></div>
-          <div>
-            <span className="text-neutral-500">Broker:</span>{' '}
-            <span className="font-bold text-amber-700 font-mono">{formatLKR(totalBroker)}</span>
-          </div>
-        </div>
-
-        {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {/* Encapsulated Preview & Print Invoice Button */}
-          {selectedProject && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPreviewModalRow(selectedProject)}
-              className="text-xs font-semibold text-neutral-800 border-neutral-300 hover:bg-neutral-100 shadow-2xs"
-              leftIcon={<Eye className="w-3.5 h-3.5 text-[#FF8C00]" />}
-            >
-              Preview & Print Invoice
-            </Button>
-          )}
-
           <Button
             size="sm"
             variant="outline"
-            onClick={handleAddRow}
-            className="text-xs font-medium"
-            leftIcon={<Plus className="w-3.5 h-3.5 text-emerald-600" />}
+            onClick={handleNewInvoice}
+            className="text-xs font-medium border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
           >
-            Add Row
+            New
           </Button>
-
           <Button
             size="sm"
-            onClick={handleSyncToDatabase}
-            isLoading={isSyncing}
-            className="bg-[#111111] hover:bg-neutral-800 text-white text-xs font-medium"
-            leftIcon={<Save className="w-3.5 h-3.5 text-[#FF8C00]" />}
+            onClick={handleSave}
+            isLoading={isSaving}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+            leftIcon={<Save className="w-3.5 h-3.5" />}
           >
-            Save & Sync
+            Save
           </Button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+            title="Print / Export PDF"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* Main Full-Width Google Spreadsheet Table View */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        {/* Spreadsheet toolbar */}
-        <div className="bg-[#F8F9FA] border-b border-neutral-300 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs select-none shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-neutral-700">Sheet View:</span>
-            <span className="bg-white border border-neutral-300 px-2.5 py-1 rounded text-xs font-mono font-medium text-neutral-800">
-              Projects & Invoices ({rows.length} rows)
-            </span>
-            <span className="hidden md:inline-block text-[11px] text-neutral-400">
-              💡 Tip: Double-click any row to open Invoice Details
-            </span>
-          </div>
+      {/* ── Main Split Panel ─────────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* ── LEFT: Form Editor ──────────────────────────── */}
+        <div className="w-[420px] min-w-[360px] max-w-[480px] bg-white border-r border-neutral-200 overflow-y-auto shrink-0">
+          <div className="p-5 space-y-6">
+            {/* ── Invoice Details Section ──────────────── */}
+            <section>
+              <h2 className="text-sm font-bold text-neutral-900 mb-4">Invoice Details</h2>
+              <div className="space-y-3.5">
+                {/* Invoice No. */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">Invoice No.</label>
+                  <input
+                    type="text"
+                    value={project.invoiceNumber}
+                    onChange={e => updateField('invoiceNumber', e.target.value)}
+                    placeholder="INV-001"
+                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
 
-          <div className="flex items-center gap-2 w-64 md:w-80">
-            <div className="relative w-full">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search project, client, worker, broker..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-neutral-300 rounded pl-8 pr-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
-              />
-            </div>
-          </div>
-        </div>
+                {/* Date */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={project.date}
+                    onChange={e => updateField('date', e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
 
-        {/* Full-Width Table Container */}
-        <div className="flex-1 overflow-auto bg-[#FFFFFF]">
-          <table className="w-full border-collapse text-xs select-text font-sans">
-            <thead className="sticky top-0 bg-[#F3F4F6] text-neutral-700 font-semibold border-b border-neutral-300 z-10 shadow-xs">
-              <tr>
-                <th className="w-12 px-2 py-2.5 border-r border-b border-neutral-300 text-center font-mono text-[11px] text-neutral-500 bg-[#E5E7EB]">
-                  #
-                </th>
-                <th className="w-32 px-3 py-2.5 border-r border-b border-neutral-300 text-left font-medium">
-                  Date <span className="text-[10px] text-neutral-400">(auto/edit)</span>
-                </th>
-                <th className="min-w-[180px] px-3 py-2.5 border-r border-b border-neutral-300 text-left font-medium">
-                  project
-                </th>
-                <th className="min-w-[180px] px-3 py-2.5 border-r border-b border-neutral-300 text-left font-medium">
-                  client / company
-                </th>
-                <th className="min-w-[150px] px-3 py-2.5 border-r border-b border-neutral-300 text-left font-medium">
-                  broker
-                </th>
-                <th className="min-w-[160px] px-3 py-2.5 border-r border-b border-neutral-300 text-left font-medium">
-                  outsource worker
-                </th>
-                <th className="w-36 px-3 py-2.5 border-r border-b border-neutral-300 text-right font-medium">
-                  my profit (Rusiru)
-                </th>
-                <th className="w-36 px-3 py-2.5 border-r border-b border-neutral-300 text-right font-bold text-neutral-900 bg-neutral-200/50">
-                  Total (LKR)
-                </th>
-                <th className="w-32 px-3 py-2.5 border-r border-b border-neutral-300 text-center font-mono text-neutral-600">
-                  Invoice #
-                </th>
-                <th className="w-28 px-3 py-2.5 border-b border-neutral-300 text-center font-medium text-neutral-600">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row, idx) => {
-                const isSelected = row.id === selectedId;
-                return (
-                  <tr
-                    key={row.id}
-                    onClick={() => setSelectedId(row.id)}
-                    onDoubleClick={() => setEditingRow(row)}
-                    className={`cursor-pointer transition-colors border-b border-neutral-200 group ${
-                      isSelected
-                        ? 'bg-[#EBF5FB] ring-1 ring-inset ring-blue-500/40'
-                        : idx % 2 === 0
-                        ? 'bg-white hover:bg-neutral-50'
-                        : 'bg-[#FAFAFA] hover:bg-neutral-50'
-                    }`}
-                  >
-                    {/* Row index */}
-                    <td className="px-2 py-2 border-r border-neutral-200 text-center font-mono text-neutral-400 bg-neutral-100/50 group-hover:bg-neutral-200/50">
-                      {idx + 1}
-                    </td>
+                {/* Customer */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">Customer</label>
+                  <input
+                    type="text"
+                    value={project.clientCompany || project.clientName}
+                    onChange={e => {
+                      updateField('clientCompany', e.target.value);
+                      updateField('clientName', e.target.value);
+                    }}
+                    placeholder="Customer name or company"
+                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+            </section>
 
-                    {/* Date */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200">
-                      <input
-                        type="date"
-                        value={row.date}
-                        onChange={e => handleCellChange(row.id, 'date', e.target.value)}
-                        className="w-full bg-transparent border-0 text-xs text-neutral-800 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none font-mono"
-                      />
-                    </td>
+            {/* ── Items Section ────────────────────────── */}
+            <section>
+              <h2 className="text-sm font-bold text-neutral-900 mb-3">Items</h2>
 
-                    {/* Project Name */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200">
+              {/* Items Table */}
+              <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                {/* Table Header */}
+                <div className="grid grid-cols-[1fr_60px_80px_32px] gap-0 bg-neutral-50 border-b border-neutral-200 px-3 py-2">
+                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Description</span>
+                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide text-center">Qty</span>
+                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide text-right">Price</span>
+                  <span></span>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-neutral-100">
+                  {items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-[1fr_60px_80px_32px] gap-0 items-center px-3 py-1.5 group hover:bg-blue-50/30 transition-colors"
+                    >
+                      {/* Description */}
                       <input
                         type="text"
-                        value={row.projectName}
-                        onChange={e => handleCellChange(row.id, 'projectName', e.target.value)}
-                        placeholder="Project title..."
-                        className="w-full bg-transparent border-0 text-xs font-semibold text-neutral-900 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
+                        value={item.description}
+                        onChange={e => updateItem(item.id, 'description', e.target.value)}
+                        placeholder={idx === 0 ? 'Service or product name...' : ''}
+                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded placeholder:text-neutral-300"
                       />
-                    </td>
+                      {/* Qty */}
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        onChange={e => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
+                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 text-center focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded font-mono"
+                      />
+                      {/* Unit Price */}
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.unitPrice === 0 ? '' : item.unitPrice}
+                        onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value) || 0)}
+                        placeholder="0.00"
+                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 text-right focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded font-mono placeholder:text-neutral-300"
+                      />
+                      {/* Remove */}
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="flex items-center justify-center w-6 h-6 rounded text-neutral-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove item"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Client / Company */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200">
+              {/* Add Item */}
+              <button
+                type="button"
+                onClick={addItem}
+                className="flex items-center gap-1.5 mt-2.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors group"
+              >
+                <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                Add item
+              </button>
+            </section>
+
+            {/* ── Additional Details (Collapsible) ─────── */}
+            <section>
+              <button
+                type="button"
+                onClick={() => setShowAdditional(!showAdditional)}
+                className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-700 transition-colors w-full"
+              >
+                {showAdditional ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+                Additional details
+              </button>
+
+              {showAdditional && (
+                <div className="mt-3 space-y-3.5 pl-6 animate-in slide-in-from-top-2 duration-200">
+                  {/* Due Date */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={project.dueDate || ''}
+                      onChange={e => updateField('dueDate', e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                    />
+                  </div>
+
+                  {/* Client Attn */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Attention (Attn)</label>
+                    <input
+                      type="text"
+                      value={project.clientAttn || ''}
+                      onChange={e => updateField('clientAttn', e.target.value)}
+                      placeholder="e.g. Managing Director"
+                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                    />
+                  </div>
+
+                  {/* Client Address */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Billing Address</label>
+                    <textarea
+                      rows={2}
+                      value={project.clientAddress || ''}
+                      onChange={e => updateField('clientAddress', e.target.value)}
+                      placeholder="Client address..."
+                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Phone & Email */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Phone</label>
                       <input
                         type="text"
-                        value={row.clientCompany || row.clientName}
+                        value={project.clientPhone || ''}
+                        onChange={e => updateField('clientPhone', e.target.value)}
+                        placeholder="+94 77..."
+                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={project.clientEmail || ''}
+                        onChange={e => updateField('clientEmail', e.target.value)}
+                        placeholder="email@..."
+                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ref Quotation */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Ref. Quotation</label>
+                    <input
+                      type="text"
+                      value={project.refQuotation || ''}
+                      onChange={e => updateField('refQuotation', e.target.value)}
+                      placeholder="CC-QUO-2026-001"
+                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                    />
+                  </div>
+
+                  {/* Discount & Tax */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Discount (Rs.)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={project.discount || ''}
                         onChange={e => {
-                          handleCellChange(row.id, 'clientCompany', e.target.value);
-                          handleCellChange(row.id, 'clientName', e.target.value);
+                          const disc = Number(e.target.value) || 0;
+                          setProject(prev => ({
+                            ...prev,
+                            discount: disc,
+                            total: (prev.subtotal || 0) - disc + (Number(prev.tax) || 0),
+                          }));
                         }}
-                        placeholder="Client company..."
-                        className="w-full bg-transparent border-0 text-xs text-neutral-800 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
-                      />
-                    </td>
-
-                    {/* Broker: amount + name */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={row.brokerFee === 0 ? '' : row.brokerFee}
-                          placeholder="0"
-                          onChange={e => handleCellChange(row.id, 'brokerFee', Number(e.target.value))}
-                          className="w-16 bg-transparent border-0 text-xs font-mono text-neutral-800 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={row.brokerName || ''}
-                          placeholder="(Hasangi)"
-                          onChange={e => handleCellChange(row.id, 'brokerName', e.target.value)}
-                          className="w-24 bg-transparent border-0 text-[11px] text-amber-700 italic p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
-                        />
-                      </div>
-                    </td>
-
-                    {/* Outsource worker: amount + name */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={row.outsourceWorkerFee === 0 ? '' : row.outsourceWorkerFee}
-                          placeholder="0"
-                          onChange={e =>
-                            handleCellChange(row.id, 'outsourceWorkerFee', Number(e.target.value))
-                          }
-                          className="w-16 bg-transparent border-0 text-xs font-mono text-neutral-800 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={row.outsourceWorkerName || ''}
-                          placeholder="(sahan)"
-                          onChange={e => handleCellChange(row.id, 'outsourceWorkerName', e.target.value)}
-                          className="w-24 bg-transparent border-0 text-[11px] text-blue-700 italic p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
-                        />
-                      </div>
-                    </td>
-
-                    {/* My Profit (Rusiru) */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200 text-right">
-                      <input
-                        type="number"
-                        value={row.myProfit === 0 ? '' : row.myProfit}
                         placeholder="0"
-                        onChange={e => handleCellChange(row.id, 'myProfit', Number(e.target.value))}
-                        className="w-full text-right bg-transparent border-0 text-xs font-mono font-bold text-emerald-700 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
+                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
                       />
-                    </td>
-
-                    {/* Total */}
-                    <td className="px-3 py-1.5 border-r border-neutral-200 text-right font-mono font-black text-neutral-900 bg-neutral-100/40">
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Tax (Rs.)</label>
                       <input
                         type="number"
-                        value={row.total}
-                        onChange={e => handleCellChange(row.id, 'total', Number(e.target.value))}
-                        className="w-full text-right bg-transparent border-0 text-xs font-mono font-black text-neutral-950 p-1 focus:bg-white focus:ring-1 focus:ring-blue-400 rounded outline-none"
+                        min="0"
+                        value={project.tax || ''}
+                        onChange={e => {
+                          const t = Number(e.target.value) || 0;
+                          setProject(prev => ({
+                            ...prev,
+                            tax: t,
+                            total: (prev.subtotal || 0) - (Number(prev.discount) || 0) + t,
+                          }));
+                        }}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
                       />
-                    </td>
+                    </div>
+                  </div>
 
-                    {/* Invoice Number */}
-                    <td className="px-2 py-1.5 border-r border-neutral-200 text-center font-mono text-[11px] text-neutral-600">
-                      {row.invoiceNumber}
-                    </td>
-
-                    {/* Actions: Eye (Preview & Print Modal), Edit, Delete */}
-                    <td className="px-2 py-1.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* EYE ICON: Preview & Print Modal */}
-                        <button
-                          type="button"
-                          title="Preview & Print Invoice"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setPreviewModalRow(row);
-                          }}
-                          className="p-1 rounded text-neutral-600 hover:text-[#FF8C00] hover:bg-orange-50 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        {/* EDIT ICON: Opens Invoice Details */}
-                        <button
-                          type="button"
-                          title="Edit Invoice Details"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setEditingRow(row);
-                          }}
-                          className="p-1 rounded text-neutral-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* DELETE ICON */}
-                        <button
-                          type="button"
-                          title="Delete Row"
-                          onClick={e => handleDeleteRow(row.id, e)}
-                          className="p-1 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Notes</label>
+                    <textarea
+                      rows={2}
+                      value={project.notes || ''}
+                      onChange={e => updateField('notes', e.target.value)}
+                      placeholder="Additional notes for this invoice..."
+                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
         </div>
 
-        {/* Bottom Google Sheets Tab Bar */}
-        <div className="bg-[#F1F3F4] border-t border-neutral-300 px-4 py-2 flex items-center justify-between text-xs select-none shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddRow}
-              className="flex items-center justify-center w-6 h-6 rounded hover:bg-neutral-300 text-neutral-700 font-bold transition-colors"
-              title="Add new sheet row"
-            >
-              +
-            </button>
-            <div className="flex items-center gap-1.5 bg-white border border-neutral-300 border-b-2 border-b-emerald-600 px-3 py-1 rounded text-xs font-medium text-neutral-800 shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Sheet1</span>
+        {/* ── RIGHT: Live A4 Preview ─────────────────────── */}
+        <div className="flex-1 bg-[#E8ECF0] overflow-y-auto flex flex-col">
+          {/* Preview Header */}
+          <div className="no-print flex items-center justify-between px-5 py-2.5 bg-[#E8ECF0] border-b border-neutral-300/50 shrink-0 sticky top-0 z-10">
+            <div className="flex items-center gap-2">
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
+                Live Preview · A4
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-white/60 transition-all"
+                title="Copy summary"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-white/60 transition-all"
+                title="Print / PDF"
+              >
+                <Printer className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          <div className="text-[11px] text-neutral-600 flex items-center gap-3">
-            <span>Selected: <strong className="text-neutral-900">{selectedProject?.projectName}</strong> ({selectedProject?.invoiceNumber})</span>
-            <button
-              type="button"
-              onClick={() => setPreviewModalRow(selectedProject)}
-              className="text-xs text-[#FF8C00] hover:underline font-bold flex items-center gap-1"
+          {/* A4 Paper */}
+          <div className="flex-1 flex justify-center py-6 px-4">
+            <div
+              id="printable-invoice"
+              className="print-container w-full max-w-[794px] bg-white shadow-[0_2px_20px_rgba(0,0,0,0.06),0_0_1px_rgba(0,0,0,0.08)] rounded-sm flex flex-col"
+              style={{
+                minHeight: '1050px',
+                fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+                padding: '52px 56px',
+              }}
             >
-              <Eye className="w-3.5 h-3.5" />
-              Preview & Print
-            </button>
-            <span className="text-neutral-300">|</span>
-            <button
-              type="button"
-              onClick={() => setEditingRow(selectedProject)}
-              className="text-xs text-blue-600 hover:underline font-semibold"
-            >
-              Edit Details
-            </button>
+              {/* ── Invoice Header ───────────────────────── */}
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <div className="text-2xl font-black tracking-tight text-blue-700 leading-none">
+                    INVOICE
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-sm">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              {/* Invoice Number */}
+              <div className="text-xs text-neutral-500 mb-5 font-medium">
+                Invoice # <span className="text-neutral-800 font-semibold">{project.invoiceNumber || 'INV-001'}</span>
+              </div>
+
+              {/* Divider */}
+              <div className="w-full h-px bg-neutral-200 mb-6"></div>
+
+              {/* Bill To */}
+              <div className="mb-8">
+                <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em] mb-2">
+                  Bill To
+                </div>
+                {(project.clientCompany || project.clientName) ? (
+                  <div>
+                    <div className="text-sm font-bold text-neutral-900">
+                      {project.clientCompany || project.clientName}
+                    </div>
+                    {project.clientAttn && (
+                      <div className="text-xs text-neutral-600 mt-0.5">Attn: {project.clientAttn}</div>
+                    )}
+                    {project.clientAddress && (
+                      <div className="text-xs text-neutral-500 mt-0.5 whitespace-pre-line">{project.clientAddress}</div>
+                    )}
+                    {project.clientPhone && (
+                      <div className="text-xs text-neutral-500 mt-0.5">{project.clientPhone}</div>
+                    )}
+                    {project.clientEmail && (
+                      <div className="text-xs text-neutral-500">{project.clientEmail}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="h-3 bg-neutral-100 rounded w-48 animate-pulse"></div>
+                    <div className="h-2.5 bg-neutral-100 rounded w-36 animate-pulse"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Date Row */}
+              {project.date && (
+                <div className="flex items-center gap-4 text-xs text-neutral-500 mb-6">
+                  <span><span className="font-semibold text-neutral-700">Date:</span> {formattedDate}</span>
+                  {project.refQuotation && (
+                    <span><span className="font-semibold text-neutral-700">Ref:</span> {project.refQuotation}</span>
+                  )}
+                </div>
+              )}
+
+              {/* ── Items Table ──────────────────────────── */}
+              <div className="mb-6 flex-1">
+                {/* Table Header */}
+                <div className="grid grid-cols-[1fr_50px_90px_100px] gap-0 border-t-2 border-b border-neutral-800 py-2.5">
+                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide">Description</span>
+                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-center">Qty</span>
+                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-right">Price</span>
+                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-right">Amount</span>
+                </div>
+
+                {/* Table Rows */}
+                {items.some(i => i.description || i.amount > 0) ? (
+                  items
+                    .filter(i => i.description || i.amount > 0)
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1fr_50px_90px_100px] gap-0 border-b border-neutral-100 py-2.5"
+                      >
+                        <span className="text-xs text-neutral-800 font-medium pr-3">{item.description}</span>
+                        <span className="text-xs text-neutral-600 text-center font-mono">{item.quantity}</span>
+                        <span className="text-xs text-neutral-600 text-right font-mono">
+                          {Number(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-xs text-neutral-900 text-right font-mono font-semibold">
+                          {Number(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))
+                ) : (
+                  /* Placeholder rows when empty */
+                  <div className="py-4 space-y-3">
+                    {[1, 2, 3].map(n => (
+                      <div key={n} className="grid grid-cols-[1fr_50px_90px_100px] gap-0">
+                        <div className="h-2.5 bg-neutral-100 rounded w-3/4 animate-pulse"></div>
+                        <div></div>
+                        <div></div>
+                        <div className="h-2.5 bg-neutral-100 rounded w-2/3 ml-auto animate-pulse"></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Totals ───────────────────────────────── */}
+              <div className="mt-auto">
+                <div className="border-t border-neutral-200 pt-3 space-y-1.5">
+                  {/* Subtotal */}
+                  {(discount > 0 || tax > 0) && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-neutral-500">Subtotal</span>
+                      <span className="font-mono text-neutral-700">
+                        Rs. {subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {/* Discount */}
+                  {discount > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-neutral-500">Discount</span>
+                      <span className="font-mono text-red-600">
+                        - Rs. {discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {/* Tax */}
+                  {tax > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-neutral-500">Tax</span>
+                      <span className="font-mono text-neutral-700">
+                        Rs. {tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Grand Total */}
+                <div className="flex justify-between items-baseline border-t-2 border-neutral-800 pt-3 mt-2">
+                  <span className="text-sm font-bold text-neutral-900 uppercase tracking-wider">Total</span>
+                  <span className="text-lg font-black text-neutral-900 font-mono">
+                    Rs. {grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Slide-over / Modal for detailed client & invoice customization */}
-      <StudioRowDrawer
-        isOpen={Boolean(editingRow)}
-        onClose={() => setEditingRow(null)}
-        row={editingRow}
-        onSave={updated => {
-          setRows(prev => prev.map(r => (r.id === updated.id ? updated : r)));
-          toast.success('Project and invoice details updated');
-        }}
-        onPrint={updated => {
-          setEditingRow(null);
-          setPreviewModalRow(updated);
-        }}
-      />
-
-      {/* Encapsulated Preview & Print Invoice Modal */}
-      <InvoicePreviewModal
-        isOpen={Boolean(previewModalRow)}
-        onClose={() => setPreviewModalRow(null)}
-        project={previewModalRow}
-      />
+      {/* ── Print Styles ─────────────────────────────────── */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-invoice, #printable-invoice * {
+            visibility: visible !important;
+          }
+          #printable-invoice {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 100% !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 20mm !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
