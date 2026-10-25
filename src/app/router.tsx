@@ -14,6 +14,11 @@ const PublicDocumentViewPage = lazy(() =>
     default: m.PublicDocumentViewPage,
   }))
 );
+const DashboardPage = lazy(() =>
+  import('../features/dashboard/DashboardPage').then(m => ({
+    default: m.DashboardPage,
+  }))
+);
 const QuickStudioPage = lazy(() =>
   import('../features/studio/QuickStudioPage').then(m => ({
     default: m.QuickStudioPage,
@@ -111,23 +116,35 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <DashboardPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'invoice',
         element: (
           <Suspense fallback={<PageLoader />}>
             <QuickStudioPage />
           </Suspense>
         ),
+      },
+      {
+        path: 'create-invoice',
+        element: <Navigate to="/invoice" replace />,
       },
       {
         path: 'studio',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <QuickStudioPage />
-          </Suspense>
-        ),
+        element: <Navigate to="/invoice" replace />,
       },
       {
         path: '*',
-        element: <Navigate to="/studio" replace />,
+        element: <Navigate to="/dashboard" replace />,
       },
     ],
   },
@@ -135,6 +152,6 @@ export const router = createBrowserRouter([
   // Catch-all route
   {
     path: '*',
-    element: <Navigate to="/studio" replace />,
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);

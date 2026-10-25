@@ -12,8 +12,8 @@ export const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children 
       <div className="flex min-h-screen items-center justify-center bg-surface p-6">
         <div className="w-full max-w-md space-y-4 text-center">
           <div className="flex justify-center items-center gap-1 mb-4">
-            <span className="text-2xl font-black text-[#FF8C00]">Code</span>
-            <span className="text-2xl font-black text-[#111111]">Crew</span>
+            <span className="text-2xl font-black text-[#111111]">Code</span>
+            <span className="text-2xl font-black text-[#FF8C00]">Crew</span>
           </div>
           <Skeleton className="h-8 w-3/4 mx-auto" />
           <Skeleton className="h-4 w-1/2 mx-auto" />

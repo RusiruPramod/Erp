@@ -235,8 +235,8 @@ export const PublicDocumentViewPage: React.FC = () => {
         {/* Top Header Card */}
         <div className="flex items-center justify-between bg-white p-4 sm:p-6 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center gap-1.5">
-            <span className="text-2xl font-black text-[#FF8C00]">Code</span>
-            <span className="text-2xl font-black text-[#111111]">Crew</span>
+            <span className="text-2xl font-black text-[#111111]">Code</span>
+            <span className="text-2xl font-black text-[#FF8C00]">Crew</span>
           </div>
 
           <Button

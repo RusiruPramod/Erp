@@ -153,8 +153,8 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({
             <div className="flex justify-between items-start border-b border-neutral-200 pb-5 mb-7">
               <div>
                 <div className="flex items-baseline text-3xl font-black tracking-tight leading-none">
-                  <span className="text-[#FF8C00]">Code</span>
-                  <span className="text-[#111111]">Crew</span>
+                  <span className="text-[#111111]">Code</span>
+                  <span className="text-[#FF8C00]">Crew</span>
                 </div>
                 <div className="text-xs font-semibold text-neutral-800 tracking-wide mt-1.5 uppercase">
                   {ownerDetails.tagline}

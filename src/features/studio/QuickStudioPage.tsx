@@ -3,29 +3,25 @@ import { StudioProjectRow, InvoiceItem } from './types';
 import {
   Plus,
   Save,
-  FileText,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
   Printer,
   Copy,
   Check,
-  MessageCircle,
-  ExternalLink,
-  Eye,
-  X,
+  RotateCcw,
+  Trash2,
+  Building,
+  FileText,
+  DollarSign,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
 import { formatLKR } from '../../lib/formatters';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'codecrew_studio_rows_v2';
 
-// Generate a unique ID
 const uid = () => `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-// Default blank item
 const blankItem = (): InvoiceItem => ({
   id: uid(),
   description: '',
@@ -34,106 +30,125 @@ const blankItem = (): InvoiceItem => ({
   amount: 0,
 });
 
-// Default blank project
-const blankProject = (): StudioProjectRow => ({
+const defaultProject = (): StudioProjectRow => ({
   id: `row-${Date.now()}`,
   rowNumber: 1,
-  date: new Date().toISOString().split('T')[0],
-  projectName: '',
-  clientName: '',
-  clientCompany: '',
-  clientAttn: '',
-  clientAddress: '',
-  clientPhone: '',
-  clientEmail: '',
-  invoiceNumber: 'INV-001',
-  refQuotation: '',
-  serviceTitle: '',
-  serviceDescription: '',
-  items: [blankItem()],
-  subtotal: 0,
+  date: '2026-10-15',
+  projectName: 'Google Workspace File Sync',
+  clientName: 'Shamshard Marikkar (Managing Director)',
+  clientCompany: 'InterMax (Pvt) Ltd.',
+  clientAttn: 'Shamshard Marikkar (Managing Director)',
+  clientAddress: '435/2, Dutugemunu Rd, Koswatte\nBattaramulla, Sri Lanka.',
+  clientPhone: '+94 77 207 8626',
+  clientEmail: 'intermaxsrilanka@gmail.com',
+  invoiceNumber: 'CC-INV-2026-001',
+  refQuotation: 'CC-GWS-SYNC-2026-001',
+  serviceTitle: 'Google Workspace File Sync Implementation',
+  serviceDescription:
+    'Configuring common drive for enabling shared folder access among 3 laptops. Includes technical review, user requirement gathering, architecture planning, system configuration, and handover walkthrough. One-time fixed fee as per agreed quotation.',
+  items: [
+    {
+      id: 'item-1',
+      description: 'Google Workspace File Sync Implementation',
+      quantity: 1,
+      unitPrice: 30000,
+      amount: 30000,
+    },
+  ],
+  subtotal: 30000,
   discount: 0,
   tax: 0,
   brokerName: '',
   brokerFee: 0,
   outsourceWorkerName: '',
   outsourceWorkerFee: 0,
-  myProfit: 0,
-  total: 0,
+  myProfit: 30000,
+  total: 30000,
   status: 'draft',
   notes: '',
 });
 
-// ─── Main Component ──────────────────────────────────────────
 export const QuickStudioPage: React.FC = () => {
-  // Load from localStorage or start fresh
   const [project, setProject] = useState<StudioProjectRow>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Support old array format — take first row
         const row = Array.isArray(parsed) ? parsed[0] : parsed;
-        if (row && row.id) {
-          // Ensure items array exists
-          if (!row.items || !Array.isArray(row.items) || row.items.length === 0) {
-            row.items = [blankItem()];
-          }
+        if (row && (row.projectName || row.clientCompany || row.invoiceNumber)) {
           return row;
         }
       }
     } catch (e) {
       console.warn('Failed to load saved invoice', e);
     }
-    return blankProject();
+    return defaultProject();
   });
 
-  const [showAdditional, setShowAdditional] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showInternalDistribution, setShowInternalDistribution] = useState(true);
 
-  // Persist to localStorage on every change
+  const printRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
     } catch (e) {
-      console.error('Failed to save', e);
+      console.error('Failed to save to localStorage', e);
     }
   }, [project]);
 
-  // ─── Field Updaters ──────────────────────────────────────
-  const updateField = useCallback(
-    (field: keyof StudioProjectRow, value: any) => {
-      setProject(prev => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const updateField = useCallback((field: keyof StudioProjectRow, value: any) => {
+    setProject(prev => {
+      const updated = { ...prev, [field]: value };
 
-  // ─── Items Logic ─────────────────────────────────────────
-  const updateItem = useCallback(
-    (itemId: string, field: keyof InvoiceItem, value: any) => {
-      setProject(prev => {
-        const items = (prev.items || []).map(item => {
-          if (item.id !== itemId) return item;
-          const updated = { ...item, [field]: value };
-          // Auto-calculate amount
-          if (field === 'quantity' || field === 'unitPrice') {
-            const qty = field === 'quantity' ? Number(value) || 0 : Number(item.quantity) || 0;
-            const price = field === 'unitPrice' ? Number(value) || 0 : Number(item.unitPrice) || 0;
-            updated.amount = qty * price;
-          }
-          return updated;
-        });
-        // Recalculate totals
-        const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-        const discount = Number(prev.discount) || 0;
-        const tax = Number(prev.tax) || 0;
-        const total = subtotal - discount + tax;
-        return { ...prev, items, subtotal, total };
+      // Auto update profit calculation if cost fields changed
+      if (field === 'brokerFee' || field === 'outsourceWorkerFee' || field === 'total') {
+        const tot = field === 'total' ? Number(value) || 0 : Number(prev.total) || 0;
+        const b = field === 'brokerFee' ? Number(value) || 0 : Number(prev.brokerFee) || 0;
+        const o = field === 'outsourceWorkerFee' ? Number(value) || 0 : Number(prev.outsourceWorkerFee) || 0;
+        updated.myProfit = Math.max(0, tot - b - o);
+      } else if (field === 'myProfit') {
+        const p = Number(value) || 0;
+        const b = Number(prev.brokerFee) || 0;
+        const o = Number(prev.outsourceWorkerFee) || 0;
+        updated.total = b + o + p;
+      }
+
+      return updated;
+    });
+  }, []);
+
+  const updateItem = useCallback((itemId: string, field: keyof InvoiceItem, value: any) => {
+    setProject(prev => {
+      const items = (prev.items || []).map(item => {
+        if (item.id !== itemId) return item;
+        const updated = { ...item, [field]: value };
+        if (field === 'quantity' || field === 'unitPrice') {
+          const qty = field === 'quantity' ? Number(value) || 0 : Number(item.quantity) || 0;
+          const price = field === 'unitPrice' ? Number(value) || 0 : Number(item.unitPrice) || 0;
+          updated.amount = qty * price;
+        }
+        return updated;
       });
-    },
-    []
-  );
+
+      const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      const discount = Number(prev.discount) || 0;
+      const total = Math.max(0, subtotal - discount);
+      const broker = Number(prev.brokerFee) || 0;
+      const outsource = Number(prev.outsourceWorkerFee) || 0;
+      const myProfit = Math.max(0, total - broker - outsource);
+
+      return {
+        ...prev,
+        items,
+        subtotal,
+        total,
+        myProfit,
+      };
+    });
+  }, []);
 
   const addItem = useCallback(() => {
     setProject(prev => ({
@@ -148,13 +163,21 @@ export const QuickStudioPage: React.FC = () => {
       if (items.length === 0) items.push(blankItem());
       const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
       const discount = Number(prev.discount) || 0;
-      const tax = Number(prev.tax) || 0;
-      const total = subtotal - discount + tax;
-      return { ...prev, items, subtotal, total };
+      const total = Math.max(0, subtotal - discount);
+      const broker = Number(prev.brokerFee) || 0;
+      const outsource = Number(prev.outsourceWorkerFee) || 0;
+      const myProfit = Math.max(0, total - broker - outsource);
+
+      return {
+        ...prev,
+        items,
+        subtotal,
+        total,
+        myProfit,
+      };
     });
   }, []);
 
-  // ─── Save / Sync ─────────────────────────────────────────
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -166,10 +189,12 @@ export const QuickStudioPage: React.FC = () => {
           .select('id')
           .eq('name', project.clientCompany || project.clientName)
           .maybeSingle();
+
         if (custData) customerId = custData.id;
+
         await supabase.from('projects').upsert(
           {
-            name: project.projectName,
+            name: project.projectName || 'Google Workspace File Sync',
             customer_id: customerId,
             project_date: project.date,
             price: project.total,
@@ -182,7 +207,7 @@ export const QuickStudioPage: React.FC = () => {
           },
           { onConflict: 'name' }
         );
-        toast.success('Invoice synced to database!');
+        toast.success('Invoice saved and synced to database!');
       } else {
         toast.success('Invoice saved locally!');
       }
@@ -193,536 +218,649 @@ export const QuickStudioPage: React.FC = () => {
     }
   };
 
-  const handleNewInvoice = () => {
-    setProject(blankProject());
-    toast.info('New blank invoice created');
+  const handleReset = () => {
+    setProject(defaultProject());
+    toast.info('Invoice reset to default');
   };
 
-  // ─── Print ───────────────────────────────────────────────
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    window.print();
+  };
 
-  const handleCopy = () => {
-    const text = `INVOICE ${project.invoiceNumber} | ${project.projectName || 'Untitled'} | Total: Rs. ${(project.total || 0).toFixed(2)}`;
+  const handleCopySummary = () => {
+    const text = `INVOICE ${project.invoiceNumber} | ${project.projectName} | Amount: ${formatLKR(project.total)}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Invoice summary copied');
+    toast.success('Invoice summary copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Format date for preview
   const formattedDate = (() => {
     try {
-      if (!project.date) return '';
+      if (!project.date) return '15 October 2026';
       const d = new Date(project.date);
       if (isNaN(d.getTime())) return project.date;
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      return d.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
     } catch {
       return project.date;
     }
   })();
 
-  const items = project.items || [blankItem()];
-  const subtotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const items = project.items || [];
+  const subtotal = Number(project.subtotal) || Number(project.total) || 0;
   const discount = Number(project.discount) || 0;
-  const tax = Number(project.tax) || 0;
-  const grandTotal = subtotal - discount + tax;
+  const grandTotal = Math.max(0, subtotal - discount);
 
-  // ─── Render ──────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen w-full bg-[#EEF1F5] overflow-hidden">
-      {/* ── Top Header Bar ───────────────────────────────── */}
-      <header className="bg-white border-b border-neutral-200 px-5 py-3 flex items-center justify-between shrink-0 z-20 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white shadow-md">
-            <FileText className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-neutral-900 leading-tight">Invoice Studio</h1>
-            <p className="text-[11px] text-neutral-400 font-medium">Simple editor · Live preview</p>
-          </div>
+    <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
+      {/* ── Top Header Toolbar ───────────────────────────────── */}
+      <header className="no-print h-14 bg-white border-b border-neutral-200 px-6 flex items-center justify-between shrink-0 z-20">
+        <div>
+          <h1 className="text-sm font-bold text-neutral-900 leading-tight">Create Invoice</h1>
+          <p className="text-[11px] text-neutral-400">Live preview & editor</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleSave}
-            isLoading={isSaving}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
-            leftIcon={<Save className="w-3.5 h-3.5" />}
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition-colors"
+            title="Reset to default"
           >
-            Save
-          </Button>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopySummary}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition-colors"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+
           <button
             type="button"
             onClick={handlePrint}
-            className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-            title="Print / Export PDF"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition-colors"
           >
-            <ExternalLink className="w-4 h-4" />
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print / PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#FF8C00] hover:bg-[#e07b00] text-white text-xs font-semibold shadow-xs transition-colors"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSaving ? 'Saving...' : 'Save Invoice'}</span>
           </button>
         </div>
       </header>
 
-      {/* ── Main Split Panel ─────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* ── LEFT: Form Editor ──────────────────────────── */}
-        <div className="w-[420px] min-w-[360px] max-w-[480px] bg-white border-r border-neutral-200 overflow-y-auto shrink-0">
-          <div className="p-5 space-y-6">
-            {/* ── Invoice Details Section ──────────────── */}
-            <section>
-              <h2 className="text-sm font-bold text-neutral-900 mb-4">Invoice Details</h2>
-              <div className="space-y-3.5">
-                {/* Invoice No. */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">Invoice No.</label>
-                  <input
-                    type="text"
-                    value={project.invoiceNumber}
-                    onChange={e => updateField('invoiceNumber', e.target.value)}
-                    placeholder="INV-001"
-                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                  />
-                </div>
+      {/* ── Main Split View ──────────────────────────────────── */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-neutral-50">
+        {/* ── LEFT: Form Input Workspace ─────────────────────── */}
+        <div className="no-print w-full lg:w-[460px] lg:min-w-[420px] bg-white border-r border-neutral-200 overflow-y-auto shrink-0 p-5 space-y-6">
+          {/* Section 1: Invoice & Project Details */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-900 uppercase tracking-wider pb-1 border-b border-neutral-100">
+              <FileText className="w-3.5 h-3.5 text-[#FF8C00]" />
+              <span>Invoice & Project Details</span>
+            </div>
 
-                {/* Date */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={project.date}
-                    onChange={e => updateField('date', e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                  />
-                </div>
-
-                {/* Customer */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">Customer</label>
-                  <input
-                    type="text"
-                    value={project.clientCompany || project.clientName}
-                    onChange={e => {
-                      updateField('clientCompany', e.target.value);
-                      updateField('clientName', e.target.value);
-                    }}
-                    placeholder="Customer name or company"
-                    className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Invoice Number</label>
+                <input
+                  type="text"
+                  value={project.invoiceNumber}
+                  onChange={e => updateField('invoiceNumber', e.target.value)}
+                  placeholder="CC-INV-2026-001"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
               </div>
-            </section>
 
-            {/* ── Items Section ────────────────────────── */}
-            <section>
-              <h2 className="text-sm font-bold text-neutral-900 mb-3">Items</h2>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={project.date}
+                  onChange={e => updateField('date', e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+            </div>
 
-              {/* Items Table */}
-              <div className="border border-neutral-200 rounded-lg overflow-hidden">
-                {/* Table Header */}
-                <div className="grid grid-cols-[1fr_60px_80px_32px] gap-0 bg-neutral-50 border-b border-neutral-200 px-3 py-2">
-                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Description</span>
-                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide text-center">Qty</span>
-                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide text-right">Price</span>
-                  <span></span>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Project / Product Name</label>
+                <input
+                  type="text"
+                  value={project.projectName}
+                  onChange={e => updateField('projectName', e.target.value)}
+                  placeholder="Google Workspace File Sync"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
 
-                {/* Table Body */}
-                <div className="divide-y divide-neutral-100">
-                  {items.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-[1fr_60px_80px_32px] gap-0 items-center px-3 py-1.5 group hover:bg-blue-50/30 transition-colors"
-                    >
-                      {/* Description */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Ref Quotation (Optional)</label>
+                <input
+                  type="text"
+                  value={project.refQuotation || ''}
+                  onChange={e => updateField('refQuotation', e.target.value)}
+                  placeholder="CC-GWS-SYNC-2026-001"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Billed To / Client Information */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-900 uppercase tracking-wider pb-1 border-b border-neutral-100">
+              <Building className="w-3.5 h-3.5 text-[#FF8C00]" />
+              <span>Billed To / Client Information</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Company Name</label>
+                <input
+                  type="text"
+                  value={project.clientCompany || ''}
+                  onChange={e => updateField('clientCompany', e.target.value)}
+                  placeholder="InterMax (Pvt) Ltd."
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Attention (Attn)</label>
+                <input
+                  type="text"
+                  value={project.clientAttn || ''}
+                  onChange={e => {
+                    updateField('clientAttn', e.target.value);
+                    if (!project.clientName) updateField('clientName', e.target.value);
+                  }}
+                  placeholder="Shamshard Marikkar (Managing Director)"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">Billing Address</label>
+              <textarea
+                rows={2}
+                value={project.clientAddress || ''}
+                onChange={e => updateField('clientAddress', e.target.value)}
+                placeholder="435/2, Dutugemunu Rd, Koswatte&#10;Battaramulla, Sri Lanka."
+                className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00] resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={project.clientPhone || ''}
+                  onChange={e => updateField('clientPhone', e.target.value)}
+                  placeholder="+94 77 207 8626"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={project.clientEmail || ''}
+                  onChange={e => updateField('clientEmail', e.target.value)}
+                  placeholder="intermaxsrilanka@gmail.com"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3: Deliverables & Scope on Invoice */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-900 uppercase tracking-wider pb-1 border-b border-neutral-100">
+              <FileText className="w-3.5 h-3.5 text-[#FF8C00]" />
+              <span>Scope & Deliverables (Visible to Client)</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">Service Task Title</label>
+              <input
+                type="text"
+                value={project.serviceTitle || ''}
+                onChange={e => updateField('serviceTitle', e.target.value)}
+                placeholder="Google Workspace File Sync Implementation"
+                className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">Description Notes</label>
+              <textarea
+                rows={3}
+                value={project.serviceDescription || ''}
+                onChange={e => updateField('serviceDescription', e.target.value)}
+                placeholder="Configuring common drive for enabling shared folder access among 3 laptops. Includes technical review, user requirement gathering, architecture planning, system configuration, and handover walkthrough. One-time fixed fee as per agreed quotation."
+                className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00] resize-none"
+              />
+            </div>
+
+            {/* Line items list */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-neutral-600">Line Items Breakdown</label>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="text-xs font-semibold text-[#FF8C00] hover:text-[#e07b00] flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Task
+                </button>
+              </div>
+
+              <div className="border border-neutral-200 rounded-lg overflow-hidden divide-y divide-neutral-100">
+                {items.map((item, idx) => (
+                  <div key={item.id} className="p-2.5 bg-white space-y-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="text"
                         value={item.description}
                         onChange={e => updateItem(item.id, 'description', e.target.value)}
-                        placeholder={idx === 0 ? 'Service or product name...' : ''}
-                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded placeholder:text-neutral-300"
+                        placeholder={`Task ${idx + 1} title / description...`}
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded text-neutral-900 focus:outline-none focus:border-[#FF8C00]"
                       />
-                      {/* Qty */}
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity === 0 ? '' : item.quantity}
-                        onChange={e => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
-                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 text-center focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded font-mono"
-                      />
-                      {/* Unit Price */}
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.unitPrice === 0 ? '' : item.unitPrice}
-                        onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value) || 0)}
-                        placeholder="0.00"
-                        className="w-full text-sm text-neutral-800 bg-transparent border-0 p-1 text-right focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 rounded font-mono placeholder:text-neutral-300"
-                      />
-                      {/* Remove */}
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="flex items-center justify-center w-6 h-6 rounded text-neutral-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove item"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="p-1.5 text-neutral-400 hover:text-red-500 rounded hover:bg-neutral-50"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] text-neutral-400">Qty / Hours</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.quantity || ''}
+                          onChange={e => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
+                          placeholder="1"
+                          className="w-full px-2 py-1 text-xs bg-neutral-50 border border-neutral-200 rounded text-neutral-900 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-neutral-400">Amount (LKR)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.amount || item.unitPrice || ''}
+                          onChange={e => {
+                            const val = Number(e.target.value) || 0;
+                            updateItem(item.id, 'amount', val);
+                            updateItem(item.id, 'unitPrice', val);
+                          }}
+                          placeholder="30000"
+                          className="w-full px-2 py-1 text-xs bg-neutral-50 border border-neutral-200 rounded text-neutral-900 font-mono text-right"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Discount & Total */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Discount (LKR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={project.discount || ''}
+                  onChange={e => {
+                    const d = Number(e.target.value) || 0;
+                    setProject(prev => ({
+                      ...prev,
+                      discount: d,
+                      total: Math.max(0, (prev.subtotal || 0) - d),
+                    }));
+                  }}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 font-mono"
+                />
               </div>
 
-              {/* Add Item */}
-              <button
-                type="button"
-                onClick={addItem}
-                className="flex items-center gap-1.5 mt-2.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors group"
-              >
-                <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                Add item
-              </button>
-            </section>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Total Amount (LKR)</label>
+                <input
+                  type="number"
+                  value={project.total || ''}
+                  onChange={e => updateField('total', Number(e.target.value) || 0)}
+                  placeholder="30000"
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 font-mono font-bold"
+                />
+              </div>
+            </div>
+          </section>
 
-            {/* ── Additional Details (Collapsible) ─────── */}
-            <section>
-              <button
-                type="button"
-                onClick={() => setShowAdditional(!showAdditional)}
-                className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-700 transition-colors w-full"
-              >
-                {showAdditional ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-                Additional details
-              </button>
+          {/* Section 4: Spreadsheet Cost & Profit Distribution (Internal) */}
+          <section className="space-y-3 bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
+            <button
+              type="button"
+              onClick={() => setShowInternalDistribution(!showInternalDistribution)}
+              className="w-full flex items-center justify-between text-xs font-bold text-neutral-900 uppercase tracking-wider"
+            >
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-[#FF8C00]" />
+                <span>Internal Distribution (Spreadsheet Columns)</span>
+              </div>
+              {showInternalDistribution ? (
+                <ChevronDown className="w-4 h-4 text-neutral-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-neutral-400" />
+              )}
+            </button>
 
-              {showAdditional && (
-                <div className="mt-3 space-y-3.5 pl-6 animate-in slide-in-from-top-2 duration-200">
-                  {/* Due Date */}
+            {showInternalDistribution && (
+              <div className="space-y-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-500 mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      value={project.dueDate || ''}
-                      onChange={e => updateField('dueDate', e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                    />
-                  </div>
-
-                  {/* Client Attn */}
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-500 mb-1">Attention (Attn)</label>
+                    <label className="block text-[11px] font-medium text-neutral-500 mb-1">Broker Name</label>
                     <input
                       type="text"
-                      value={project.clientAttn || ''}
-                      onChange={e => updateField('clientAttn', e.target.value)}
-                      placeholder="e.g. Managing Director"
-                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                      value={project.brokerName || ''}
+                      onChange={e => updateField('brokerName', e.target.value)}
+                      placeholder="e.g. Hasangi"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900"
                     />
                   </div>
-
-                  {/* Client Address */}
                   <div>
-                    <label className="block text-xs font-medium text-neutral-500 mb-1">Billing Address</label>
-                    <textarea
-                      rows={2}
-                      value={project.clientAddress || ''}
-                      onChange={e => updateField('clientAddress', e.target.value)}
-                      placeholder="Client address..."
-                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* Phone & Email */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Phone</label>
-                      <input
-                        type="text"
-                        value={project.clientPhone || ''}
-                        onChange={e => updateField('clientPhone', e.target.value)}
-                        placeholder="+94 77..."
-                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={project.clientEmail || ''}
-                        onChange={e => updateField('clientEmail', e.target.value)}
-                        placeholder="email@..."
-                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ref Quotation */}
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-500 mb-1">Ref. Quotation</label>
+                    <label className="block text-[11px] font-medium text-neutral-500 mb-1">Broker Fee (LKR)</label>
                     <input
-                      type="text"
-                      value={project.refQuotation || ''}
-                      onChange={e => updateField('refQuotation', e.target.value)}
-                      placeholder="CC-QUO-2026-001"
-                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                    />
-                  </div>
-
-                  {/* Discount & Tax */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Discount (Rs.)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={project.discount || ''}
-                        onChange={e => {
-                          const disc = Number(e.target.value) || 0;
-                          setProject(prev => ({
-                            ...prev,
-                            discount: disc,
-                            total: (prev.subtotal || 0) - disc + (Number(prev.tax) || 0),
-                          }));
-                        }}
-                        placeholder="0"
-                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Tax (Rs.)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={project.tax || ''}
-                        onChange={e => {
-                          const t = Number(e.target.value) || 0;
-                          setProject(prev => ({
-                            ...prev,
-                            tax: t,
-                            total: (prev.subtotal || 0) - (Number(prev.discount) || 0) + t,
-                          }));
-                        }}
-                        placeholder="0"
-                        className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-500 mb-1">Notes</label>
-                    <textarea
-                      rows={2}
-                      value={project.notes || ''}
-                      onChange={e => updateField('notes', e.target.value)}
-                      placeholder="Additional notes for this invoice..."
-                      className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none"
+                      type="number"
+                      value={project.brokerFee || ''}
+                      onChange={e => updateField('brokerFee', Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 font-mono"
                     />
                   </div>
                 </div>
-              )}
-            </section>
-          </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-neutral-500 mb-1">Outsource Worker Name</label>
+                    <input
+                      type="text"
+                      value={project.outsourceWorkerName || ''}
+                      onChange={e => updateField('outsourceWorkerName', e.target.value)}
+                      placeholder="e.g. sahan / malaka"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-neutral-500 mb-1">Outsource Fee (LKR)</label>
+                    <input
+                      type="number"
+                      value={project.outsourceWorkerFee || ''}
+                      onChange={e => updateField('outsourceWorkerFee', Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-neutral-200/80 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-neutral-700">My Profit (Rusiru):</span>
+                  <span className="font-bold text-neutral-900 font-mono">{formatLKR(project.myProfit)}</span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Section 5: Notes & Terms */}
+          <section className="space-y-2">
+            <label className="block text-xs font-medium text-neutral-600">Notes & Terms (Optional)</label>
+            <textarea
+              rows={2}
+              value={project.notes || ''}
+              onChange={e => updateField('notes', e.target.value)}
+              placeholder="Custom terms or notes for this invoice..."
+              className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg text-neutral-900 focus:outline-none focus:border-[#FF8C00] resize-none"
+            />
+          </section>
         </div>
 
-        {/* ── RIGHT: Live A4 Preview ─────────────────────── */}
-        <div className="flex-1 bg-[#E8ECF0] overflow-y-auto flex flex-col">
-          {/* Preview Header */}
-          <div className="no-print flex items-center justify-between px-5 py-2.5 bg-[#E8ECF0] border-b border-neutral-300/50 shrink-0 sticky top-0 z-10">
-            <div className="flex items-center gap-2">
-              <span className="flex h-1.5 w-1.5 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
-                Live Preview · A4
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-white/60 transition-all"
-                title="Copy summary"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-white/60 transition-all"
-                title="Print / PDF"
-              >
-                <Printer className="w-3.5 h-3.5" />
-              </button>
-            </div>
+        {/* ── RIGHT: Live Invoice Document Preview ───────────── */}
+        <div className="flex-1 bg-neutral-100 overflow-y-auto flex flex-col items-center py-6 px-4">
+          <div className="no-print mb-3 text-[11px] font-semibold text-neutral-400 uppercase tracking-widest">
+            Document Live Preview
           </div>
 
-          {/* A4 Paper */}
-          <div className="flex-1 flex justify-center py-6 px-4">
-            <div
-              id="printable-invoice"
-              className="print-container w-full max-w-[794px] bg-white shadow-[0_2px_20px_rgba(0,0,0,0.06),0_0_1px_rgba(0,0,0,0.08)] rounded-sm flex flex-col"
-              style={{
-                minHeight: '1050px',
-                fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-                padding: '52px 56px',
-              }}
-            >
-              {/* ── Invoice Header ───────────────────────── */}
-              <div className="flex justify-between items-start mb-8">
+          {/* Printable A4 Paper Container */}
+          <div
+            ref={printRef}
+            id="printable-invoice"
+            className="print-container w-full max-w-[760px] min-h-[1020px] bg-white text-neutral-900 p-10 md:p-12 shadow-[0_2px_16px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] border border-neutral-200/80 rounded-sm flex flex-col justify-between select-text"
+            style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
+          >
+            {/* Top Main Section */}
+            <div>
+              {/* Header: Brand on left, Invoice details on right */}
+              <div className="flex justify-between items-start pb-4">
+                {/* Brand */}
                 <div>
-                  <div className="text-2xl font-black tracking-tight text-blue-700 leading-none">
+                  <div className="flex items-baseline text-2xl font-black tracking-tight leading-none">
+                    <span className="text-neutral-900">Code</span>
+                    <span className="text-[#FF8C00]">Crew</span>
+                  </div>
+                  <div className="text-xs font-bold text-neutral-900 mt-2">
+                    Software Solutions
+                  </div>
+                  <div className="text-xs text-neutral-800 mt-1">R.H.V.R.Pramod</div>
+                  <div className="text-xs text-neutral-700 mt-0.5">Mobile: 0755437148</div>
+                  <div className="text-xs text-neutral-700 mt-0.5">Email: rusirupramod@gmail.com</div>
+                </div>
+
+                {/* Invoice Title & Meta */}
+                <div className="text-right">
+                  <div className="text-2xl font-black text-neutral-900 tracking-wider uppercase">
                     INVOICE
                   </div>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-sm">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-              </div>
-
-              {/* Invoice Number */}
-              <div className="text-xs text-neutral-500 mb-5 font-medium">
-                Invoice # <span className="text-neutral-800 font-semibold">{project.invoiceNumber || 'INV-001'}</span>
-              </div>
-
-              {/* Divider */}
-              <div className="w-full h-px bg-neutral-200 mb-6"></div>
-
-              {/* Bill To */}
-              <div className="mb-8">
-                <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em] mb-2">
-                  Bill To
-                </div>
-                {(project.clientCompany || project.clientName) ? (
-                  <div>
-                    <div className="text-sm font-bold text-neutral-900">
-                      {project.clientCompany || project.clientName}
+                  <div className="text-xs text-neutral-800 mt-2 font-mono">
+                    # {project.invoiceNumber ? project.invoiceNumber.replace(/^#\s*/, '') : 'CC-INV-2026-001'}
+                  </div>
+                  <div className="text-xs text-neutral-700 mt-1">
+                    Date: {formattedDate}
+                  </div>
+                  {project.refQuotation ? (
+                    <div className="text-xs text-neutral-700 mt-1">
+                      Ref Quotation: {project.refQuotation}
                     </div>
-                    {project.clientAttn && (
-                      <div className="text-xs text-neutral-600 mt-0.5">Attn: {project.clientAttn}</div>
-                    )}
-                    {project.clientAddress && (
-                      <div className="text-xs text-neutral-500 mt-0.5 whitespace-pre-line">{project.clientAddress}</div>
-                    )}
-                    {project.clientPhone && (
-                      <div className="text-xs text-neutral-500 mt-0.5">{project.clientPhone}</div>
-                    )}
-                    {project.clientEmail && (
-                      <div className="text-xs text-neutral-500">{project.clientEmail}</div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <div className="h-3 bg-neutral-100 rounded w-48 animate-pulse"></div>
-                    <div className="h-2.5 bg-neutral-100 rounded w-36 animate-pulse"></div>
-                  </div>
-                )}
+                  ) : null}
+                </div>
               </div>
 
-              {/* Date Row */}
-              {project.date && (
-                <div className="flex items-center gap-4 text-xs text-neutral-500 mb-6">
-                  <span><span className="font-semibold text-neutral-700">Date:</span> {formattedDate}</span>
-                  {project.refQuotation && (
-                    <span><span className="font-semibold text-neutral-700">Ref:</span> {project.refQuotation}</span>
-                  )}
-                </div>
-              )}
+              {/* Full-width Divider Line */}
+              <div className="w-full border-b border-black my-5"></div>
 
-              {/* ── Items Table ──────────────────────────── */}
-              <div className="mb-6 flex-1">
+              {/* BILLED TO */}
+              <div className="mb-6">
+                <div className="text-[11px] font-bold text-neutral-900 uppercase tracking-wider mb-1">
+                  BILLED TO
+                </div>
+                <div className="w-48 border-b border-black mb-3"></div>
+
+                <div className="text-xs font-bold text-neutral-950">
+                  {project.clientCompany || project.clientName || 'Client Name / Company'}
+                </div>
+                {project.clientAttn ? (
+                  <div className="text-xs text-neutral-800 mt-0.5">
+                    Attn: {project.clientAttn}
+                  </div>
+                ) : null}
+                {project.clientAddress ? (
+                  <div className="text-xs text-neutral-700 mt-0.5 whitespace-pre-line leading-relaxed">
+                    {project.clientAddress}
+                  </div>
+                ) : null}
+                {project.clientPhone ? (
+                  <div className="text-xs text-neutral-700 mt-0.5">
+                    <span className="font-semibold text-neutral-900">Phone: </span>
+                    {project.clientPhone}
+                  </div>
+                ) : null}
+                {project.clientEmail ? (
+                  <div className="text-xs text-neutral-700 mt-0.5">
+                    <span className="font-semibold text-neutral-900">Email: </span>
+                    {project.clientEmail}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Table with 1px black border */}
+              <div className="w-full border border-black mb-6">
                 {/* Table Header */}
-                <div className="grid grid-cols-[1fr_50px_90px_100px] gap-0 border-t-2 border-b border-neutral-800 py-2.5">
-                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide">Description</span>
-                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-center">Qty</span>
-                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-right">Price</span>
-                  <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wide text-right">Amount</span>
+                <div className="flex border-b border-black text-[11px] font-bold text-neutral-900 uppercase">
+                  <div className="flex-1 p-2 border-r border-black">
+                    DESCRIPTION
+                  </div>
+                  <div className="w-36 p-2 text-right">
+                    AMOUNT (LKR)
+                  </div>
                 </div>
 
-                {/* Table Rows */}
-                {items.some(i => i.description || i.amount > 0) ? (
-                  items
-                    .filter(i => i.description || i.amount > 0)
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-[1fr_50px_90px_100px] gap-0 border-b border-neutral-100 py-2.5"
-                      >
-                        <span className="text-xs text-neutral-800 font-medium pr-3">{item.description}</span>
-                        <span className="text-xs text-neutral-600 text-center font-mono">{item.quantity}</span>
-                        <span className="text-xs text-neutral-600 text-right font-mono">
-                          {Number(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span className="text-xs text-neutral-900 text-right font-mono font-semibold">
-                          {Number(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    ))
-                ) : (
-                  /* Placeholder rows when empty */
-                  <div className="py-4 space-y-3">
-                    {[1, 2, 3].map(n => (
-                      <div key={n} className="grid grid-cols-[1fr_50px_90px_100px] gap-0">
-                        <div className="h-2.5 bg-neutral-100 rounded w-3/4 animate-pulse"></div>
-                        <div></div>
-                        <div></div>
-                        <div className="h-2.5 bg-neutral-100 rounded w-2/3 ml-auto animate-pulse"></div>
-                      </div>
-                    ))}
+                {/* Table Row(s) */}
+                <div className="flex border-b border-black min-h-[90px]">
+                  <div className="flex-1 p-2.5 border-r border-black text-xs">
+                    <div className="font-bold text-neutral-950 mb-1.5 text-xs">
+                      {project.serviceTitle || project.projectName || 'Service Implementation'}
+                    </div>
+                    <p className="text-neutral-700 leading-relaxed text-xs">
+                      {project.serviceDescription ||
+                        'Configuring common drive for enabling shared folder access. Includes technical review, user requirement gathering, architecture planning, system configuration, and handover walkthrough.'}
+                    </p>
+                  </div>
+                  <div className="w-36 p-2.5 text-right font-mono text-xs flex items-center justify-end">
+                    {Number(subtotal || project.total || 0).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </div>
+                </div>
+
+                {/* Subtotal */}
+                <div className="flex border-b border-black text-xs">
+                  <div className="flex-1 p-2 text-right border-r border-black">
+                    Subtotal
+                  </div>
+                  <div className="w-36 p-2 text-right font-mono">
+                    {Number(subtotal || project.total || 0).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </div>
+                </div>
+
+                {/* Discount if present */}
+                {discount > 0 && (
+                  <div className="flex border-b border-black text-xs">
+                    <div className="flex-1 p-2 text-right border-r border-black">
+                      Discount
+                    </div>
+                    <div className="w-36 p-2 text-right font-mono text-red-600">
+                      - {Number(discount).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {/* ── Totals ───────────────────────────────── */}
-              <div className="mt-auto">
-                <div className="border-t border-neutral-200 pt-3 space-y-1.5">
-                  {/* Subtotal */}
-                  {(discount > 0 || tax > 0) && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-neutral-500">Subtotal</span>
-                      <span className="font-mono text-neutral-700">
-                        Rs. {subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                  {/* Discount */}
-                  {discount > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-neutral-500">Discount</span>
-                      <span className="font-mono text-red-600">
-                        - Rs. {discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                  {/* Tax */}
-                  {tax > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-neutral-500">Tax</span>
-                      <span className="font-mono text-neutral-700">
-                        Rs. {tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Grand Total */}
-                <div className="flex justify-between items-baseline border-t-2 border-neutral-800 pt-3 mt-2">
-                  <span className="text-sm font-bold text-neutral-900 uppercase tracking-wider">Total</span>
-                  <span className="text-lg font-black text-neutral-900 font-mono">
-                    Rs. {grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                {/* TOTAL DUE */}
+                <div className="flex text-xs font-bold">
+                  <div className="flex-1 p-2 text-right border-r border-black uppercase">
+                    TOTAL DUE
+                  </div>
+                  <div className="w-36 p-2 text-right font-mono">
+                    LKR {Number(grandTotal).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </div>
                 </div>
               </div>
+
+              {/* PAYMENT / BENEFICIARY DETAILS */}
+              <div className="border border-black p-3.5 w-64 text-xs mb-8">
+                <div className="font-bold text-neutral-950 uppercase pb-1 mb-2 border-b border-black text-[10px] tracking-wide">
+                  PAYMENT / BENEFICIARY DETAILS
+                </div>
+                <div className="space-y-1">
+                  <div>
+                    <span className="font-semibold text-neutral-900">Bank Name: </span>
+                    <span className="text-neutral-800">BOC (Bank of Ceylon)</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-900">Account Name: </span>
+                    <span className="text-neutral-800">R.H.V.R.Pramod</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-900">Account No: </span>
+                    <span className="text-neutral-800 font-mono">89121867</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-900">Branch: </span>
+                    <span className="text-neutral-800">Weligama</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes block if present */}
+              {project.notes ? (
+                <div className="text-[11px] text-neutral-600 mb-6 leading-relaxed">
+                  <span className="font-semibold text-neutral-900">Notes & Terms: </span>
+                  {project.notes}
+                </div>
+              ) : null}
+
+              {/* Centered Thank You Message */}
+              <div className="text-center text-xs text-neutral-700 pt-3">
+                Thank you for your business! If you have any questions regarding this invoice, please contact us.
+              </div>
+            </div>
+
+            {/* Bottom Footer */}
+            <div className="flex justify-between items-center text-[10px] text-neutral-500 pt-8 border-t border-neutral-100 mt-6">
+              <span>CodeCrew Software Solutions</span>
+              <span>Invoice #{project.invoiceNumber ? project.invoiceNumber.replace(/^#\s*/, '') : 'CC-INV-2026-001'}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Print Styles ─────────────────────────────────── */}
+      {/* Embedded Print Styling */}
       <style>{`
         @media print {
           body * {
@@ -741,7 +879,7 @@ export const QuickStudioPage: React.FC = () => {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 20mm !important;
+            padding: 15mm 20mm !important;
             margin: 0 !important;
           }
           .no-print {

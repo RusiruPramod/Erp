@@ -15,8 +15,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onQuickAddExpense }) => {
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-white px-4 md:px-6 shadow-xs">
       {/* Mobile brand text */}
       <div className="flex md:hidden items-center gap-1">
-        <span className="text-lg font-black text-[#FF8C00]">Code</span>
-        <span className="text-lg font-black text-[#111111]">Crew</span>
+        <span className="text-lg font-black text-[#111111]">Code</span>
+        <span className="text-lg font-black text-[#FF8C00]">Crew</span>
       </div>
 
       {/* Center / Search / Breadcrumb spacer */}

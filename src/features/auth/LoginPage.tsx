@@ -45,8 +45,8 @@ export const LoginPage: React.FC = () => {
         {/* Brand */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5">
-            <span className="text-3xl font-black tracking-tight text-[#FF8C00]">Code</span>
-            <span className="text-3xl font-black tracking-tight text-[#111111]">Crew</span>
+            <span className="text-3xl font-black tracking-tight text-[#111111]">Code</span>
+            <span className="text-3xl font-black tracking-tight text-[#FF8C00]">Crew</span>
           </div>
           <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
             Internal Business ERP
