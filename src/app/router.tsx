@@ -24,6 +24,16 @@ const QuickStudioPage = lazy(() =>
     default: m.QuickStudioPage,
   }))
 );
+const AdCampaignLedgerPage = lazy(() =>
+  import('../features/campaigns/AdCampaignLedgerPage').then(m => ({
+    default: m.AdCampaignLedgerPage,
+  }))
+);
+const OrdersPage = lazy(() =>
+  import('../features/orders/OrdersPage').then(m => ({
+    default: m.OrdersPage,
+  }))
+);
 const ProjectsListPage = lazy(() =>
   import('../features/projects/ProjectsListPage').then(m => ({
     default: m.ProjectsListPage,
@@ -133,6 +143,30 @@ export const router = createBrowserRouter([
             <QuickStudioPage />
           </Suspense>
         ),
+      },
+      {
+        path: 'campaigns',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <AdCampaignLedgerPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'orders',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'ad-campaigns',
+        element: <Navigate to="/campaigns" replace />,
+      },
+      {
+        path: 'campaign-ledger',
+        element: <Navigate to="/campaigns" replace />,
       },
       {
         path: 'create-invoice',

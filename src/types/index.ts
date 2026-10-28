@@ -51,3 +51,109 @@ export interface DocumentWithDetails extends Document {
   project?: Project;
   items: DocumentItem[];
 }
+
+// ============================================================================
+// AD CAMPAIGN LEDGER & PROFIT TRACKER MODULE TYPES
+// ============================================================================
+
+export type CampaignStatus = 'running' | 'review' | 'closed';
+export type OrderStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+export type SupplierType = 'in_house' | 'outsourced';
+export type AdExpenseCategory = 'Packaging' | 'Delivery' | 'Material purchases' | 'Operational' | 'Other';
+
+export interface AdOrderService {
+  id: string;
+  order_id: string;
+  position: number;
+  service_name: string;
+  supplier_type: SupplierType;
+  supplier_cost: number | null;
+  markup: number | null;
+  client_price: number | null;
+  is_financial_pending: boolean;
+  notes?: string | null;
+}
+
+export interface AdCampaignOrder {
+  id: string;
+  campaign_id: string | null;
+  order_number: string;
+  order_name: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  order_date: string;
+  status: OrderStatus;
+  notes: string | null;
+  services: AdOrderService[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdCampaignExpense {
+  id: string;
+  campaign_id: string;
+  category: AdExpenseCategory;
+  description: string;
+  expense_date: string;
+  amount: number;
+  currency: 'LKR' | 'USD';
+  exchange_rate: number;
+  amount_lkr: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdCampaign {
+  id: string;
+  campaign_code: string;
+  name: string;
+  fb_campaign_ref: string | null;
+  start_date: string;
+  end_date: string | null;
+  status: CampaignStatus;
+  ad_spend_usd: number;
+  exchange_rate: number;
+  ad_spend_lkr: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderFinancialSummary {
+  revenue: number;
+  supplier_costs: number;
+  gross_profit: number;
+  allocated_ad_spend: number;
+  net_contribution: number;
+  has_incomplete_financials: boolean;
+  is_confirmed: boolean;
+}
+
+export interface CampaignFinancialSummary {
+  campaign_id: string;
+  confirmed_orders_count: number;
+  pending_orders_count: number;
+  total_revenue: number;
+  total_supplier_costs: number;
+  gross_profit: number;
+  ad_spend_usd: number;
+  ad_spend_lkr: number;
+  other_expenses_lkr: number;
+  net_profit: number;
+  has_incomplete_financials: boolean;
+}
+
+export interface LedgerOverallMetrics {
+  total_ad_spend_usd: number;
+  total_ad_spend_lkr: number;
+  total_confirmed_revenue: number;
+  total_supplier_costs: number;
+  gross_profit: number;
+  other_expenses_lkr: number;
+  net_profit: number;
+  total_campaigns_count: number;
+  running_campaigns_count: number;
+  closed_campaigns_count: number;
+  has_incomplete_records: boolean;
+}

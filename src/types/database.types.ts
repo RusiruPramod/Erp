@@ -395,6 +395,191 @@ export interface Database {
           last_number?: number;
         };
       };
+      ad_campaigns: {
+        Row: {
+          id: string;
+          campaign_code: string;
+          name: string;
+          fb_campaign_ref: string | null;
+          start_date: string;
+          end_date: string | null;
+          status: 'running' | 'review' | 'closed';
+          ad_spend_usd: number;
+          exchange_rate: number;
+          ad_spend_lkr: number;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_code: string;
+          name: string;
+          fb_campaign_ref?: string | null;
+          start_date?: string;
+          end_date?: string | null;
+          status?: 'running' | 'review' | 'closed';
+          ad_spend_usd?: number;
+          exchange_rate?: number;
+          ad_spend_lkr?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_code?: string;
+          name?: string;
+          fb_campaign_ref?: string | null;
+          start_date?: string;
+          end_date?: string | null;
+          status?: 'running' | 'review' | 'closed';
+          ad_spend_usd?: number;
+          exchange_rate?: number;
+          ad_spend_lkr?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      ad_campaign_orders: {
+        Row: {
+          id: string;
+          campaign_id: string | null;
+          order_number: string;
+          order_name: string;
+          customer_name: string | null;
+          customer_phone: string | null;
+          order_date: string;
+          status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string | null;
+          order_number: string;
+          order_name: string;
+          customer_name?: string | null;
+          customer_phone?: string | null;
+          order_date?: string;
+          status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string | null;
+          order_number?: string;
+          order_name?: string;
+          customer_name?: string | null;
+          customer_phone?: string | null;
+          order_date?: string;
+          status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      ad_order_services: {
+        Row: {
+          id: string;
+          order_id: string;
+          position: number;
+          service_name: string;
+          supplier_type: 'in_house' | 'outsourced';
+          supplier_cost: number | null;
+          markup: number | null;
+          client_price: number | null;
+          is_financial_pending: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          position?: number;
+          service_name: string;
+          supplier_type?: 'in_house' | 'outsourced';
+          supplier_cost?: number | null;
+          markup?: number | null;
+          client_price?: number | null;
+          is_financial_pending?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          position?: number;
+          service_name?: string;
+          supplier_type?: 'in_house' | 'outsourced';
+          supplier_cost?: number | null;
+          markup?: number | null;
+          client_price?: number | null;
+          is_financial_pending?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      ad_campaign_expenses: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          category: 'Packaging' | 'Delivery' | 'Material purchases' | 'Operational' | 'Other';
+          description: string;
+          expense_date: string;
+          amount: number;
+          currency: 'LKR' | 'USD';
+          exchange_rate: number;
+          amount_lkr: number;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          category?: 'Packaging' | 'Delivery' | 'Material purchases' | 'Operational' | 'Other';
+          description: string;
+          expense_date?: string;
+          amount: number;
+          currency?: 'LKR' | 'USD';
+          exchange_rate?: number;
+          amount_lkr?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          category?: 'Packaging' | 'Delivery' | 'Material purchases' | 'Operational' | 'Other';
+          description?: string;
+          expense_date?: string;
+          amount?: number;
+          currency?: 'LKR' | 'USD';
+          exchange_rate?: number;
+          amount_lkr?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       project_summary: {

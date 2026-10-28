@@ -1,24 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  FileSpreadsheet,
-  Briefcase,
-  Receipt,
+  LayoutDashboard,
+  Megaphone,
+  ShoppingBag,
   FileText,
-  Users,
-  Settings as SettingsIcon,
 } from 'lucide-react';
-import { useAuth } from '../../features/auth/AuthContext';
 
 export const MobileNav: React.FC = () => {
-  const { isAdmin } = useAuth();
-
   const items = [
-    { label: 'Studio', to: '/studio', icon: FileSpreadsheet },
-    { label: 'Projects', to: '/projects', icon: Briefcase },
-    { label: 'Expenses', to: '/expenses', icon: Receipt },
-    { label: 'Documents', to: '/documents', icon: FileText },
-    { label: isAdmin ? 'Settings' : 'Customers', to: isAdmin ? '/settings' : '/customers', icon: isAdmin ? SettingsIcon : Users },
+    { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+    { label: 'Campaigns', to: '/campaigns', icon: Megaphone },
+    { label: 'Orders', to: '/orders', icon: ShoppingBag },
+    { label: 'Create Invoice', to: '/invoice', icon: FileText },
   ];
 
   return (

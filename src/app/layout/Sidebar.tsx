@@ -1,10 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText } from 'lucide-react';
+import { LayoutDashboard, FileText, Megaphone, ShoppingBag } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const navItems = [
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+    { label: 'Ad Campaigns', to: '/campaigns', icon: Megaphone },
+    { label: 'Orders & Inquiries', to: '/orders', icon: ShoppingBag },
     { label: 'Create Invoice', to: '/invoice', icon: FileText },
   ];
 
@@ -28,10 +30,9 @@ export const Sidebar: React.FC = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                    isActive
-                      ? 'bg-orange-50 text-[#FF8C00] font-semibold border-r-2 border-[#FF8C00]'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${isActive
+                    ? 'bg-orange-50 text-[#FF8C00] font-semibold border-r-2 border-[#FF8C00]'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                   }`
                 }
               >

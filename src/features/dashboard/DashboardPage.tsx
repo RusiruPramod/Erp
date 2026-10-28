@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Package, FileText, DollarSign, Receipt, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Package, FileText, DollarSign, Receipt, TrendingUp, Megaphone, ArrowRight } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Skeleton } from '../../components/ui/Skeleton';
 
@@ -262,6 +263,63 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
           <p className="text-[11px] text-neutral-400 mt-2 truncate">Recorded in system</p>
+        </div>
+      </div>
+
+      {/* 6. Ad Campaign Ledger Quick Access Section */}
+      <div className="mt-8 rounded-xl border border-neutral-200/90 bg-white p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200/70">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#FF8C00] flex items-center justify-center">
+              <Megaphone className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-900">Facebook Ad Campaign Ledger</h2>
+              <p className="text-xs text-neutral-500">
+                Track ad spend in USD/LKR, customer orders, and net business profit campaign by campaign
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/campaigns"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#FF8C00] text-white hover:bg-[#E07B00] transition-colors shadow-2xs self-start sm:self-auto"
+          >
+            <span>Open Ad Ledger</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-200/60">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+              Active Campaigns
+            </span>
+            <span className="text-sm font-bold text-emerald-700 mt-0.5 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              2 Running Campaigns
+            </span>
+            <p className="text-[11px] text-neutral-400 mt-1">Smart Medicine & Safety Helmet Ads</p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-200/60">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+              Current Ad Spend
+            </span>
+            <span className="text-sm font-bold font-mono text-neutral-900 mt-0.5 block">
+              $3.11 USD <span className="text-neutral-500 text-xs font-normal">($1.24 + $1.87)</span>
+            </span>
+            <p className="text-[11px] text-neutral-400 mt-1">≈ LKR 948.55 at LKR 305/USD</p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-200/60">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+              Business Workflow
+            </span>
+            <span className="text-xs font-semibold text-neutral-800 mt-0.5 block">
+              Organized Campaign by Campaign
+            </span>
+            <p className="text-[11px] text-neutral-400 mt-1">Order gross profit minus allocated ad spend</p>
+          </div>
         </div>
       </div>
     </div>
