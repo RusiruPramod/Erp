@@ -3,26 +3,14 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
-import {
-  AdCampaign,
-  AdCampaignOrder,
-  AdCampaignExpense,
-  CampaignStatus,
-} from '../../types';
-import { calculateOrderFinancials } from '../../services/adCalculations';
+import { AdCampaign, AdCampaignExpense, CampaignStatus } from '../../types';
 import { formatLKR, formatDateInput } from '../../lib/formatters';
-import {
-  AlertTriangle,
-  Plus,
-  DollarSign,
-  Receipt,
-} from 'lucide-react';
+import { DollarSign, Receipt, Plus } from 'lucide-react';
 
 interface CampaignCloseModalProps {
   isOpen: boolean;
   onClose: () => void;
   campaign: AdCampaign | null;
-  orders: AdCampaignOrder[];
   expenses: AdCampaignExpense[];
   onSaveAndClose: (
     campaignId: string,
@@ -52,7 +40,6 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
   isOpen,
   onClose,
   campaign,
-  orders,
   expenses,
   onSaveAndClose,
   onOpenAddExpenseModal,
@@ -118,27 +105,6 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
     }
   };
 
-  // Filter orders for this campaign
-  const campaignOrders = orders.filter(o => o.campaign_id === campaign.id);
-  const confirmedOrders = campaignOrders.filter(o =>
-    ['confirmed', 'in_progress', 'completed'].includes(o.status)
-  );
-  const pendingOrders = campaignOrders.filter(o => o.status === 'pending');
-
-  // Sum confirmed orders
-  let totalRevenue = 0;
-  let totalSupplierCosts = 0;
-  let hasIncomplete = false;
-
-  confirmedOrders.forEach(order => {
-    const fin = calculateOrderFinancials(order, 0, 0);
-    if (fin.has_incomplete_financials) hasIncomplete = true;
-    totalRevenue += fin.revenue;
-    totalSupplierCosts += fin.supplier_costs;
-  });
-
-  const grossProfit = totalRevenue - totalSupplierCosts;
-
   // Existing expenses + pending new expenses
   const existingExpensesTotal = expenses
     .filter(e => e.campaign_id === campaign.id)
@@ -147,11 +113,9 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
   const pendingExpensesTotal = pendingNewExpenses.reduce((sum, e) => sum + e.amount_lkr, 0);
   const totalOtherExpenses = existingExpensesTotal + pendingExpensesTotal;
 
-  // Ad Spend in LKR
+  // Final Ad Spend in LKR
   const currentAdSpendLkr = Number(adSpendLkr) || 0;
-
-  // Final Net Profit = Gross Profit - Ad Spend LKR - Other Expenses
-  const finalNetProfit = grossProfit - currentAdSpendLkr - totalOtherExpenses;
+  const totalCampaignCost = currentAdSpendLkr + totalOtherExpenses;
 
   const handleAddQuickExpense = () => {
     if (!quickExpDesc.trim() || !quickExpAmount || Number(quickExpAmount) <= 0) return;
@@ -208,69 +172,39 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Close / Review Campaign: ${campaign.campaign_code}`}
-      description="Review campaign revenue, orders, enter actual final Meta advertising spend, add operational costs, and calculate net business profit."
-      maxWidth="2xl"
+      title={`Settle / Close Ad Campaign: ${campaign.campaign_code}`}
+      description="Enter the actual final billed Meta advertising spend in USD, verify the exchange rate, and save ad expenditure."
+      maxWidth="lg"
     >
-      <form onSubmit={handleFinalSubmit} className="space-y-5">
-        {/* Campaign Header Summary */}
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-2 mb-3">
-            <div>
-              <span className="text-xs font-bold text-neutral-900">{campaign.name}</span>
-              {campaign.fb_campaign_ref && (
-                <span className="text-[11px] text-neutral-500 ml-2">
-                  (Ref: {campaign.fb_campaign_ref})
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-500">
-                Started: <span className="font-semibold text-neutral-800">{campaign.start_date}</span>
+      <form onSubmit={handleFinalSubmit} className="space-y-4">
+        {/* Campaign Info */}
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-neutral-900">{campaign.name}</span>
+            {campaign.fb_campaign_ref && (
+              <span className="text-[11px] text-neutral-500 ml-2 font-mono">
+                ({campaign.fb_campaign_ref})
               </span>
-            </div>
+            )}
+            <p className="text-[11px] text-neutral-500 mt-0.5">
+              Started: {campaign.start_date}
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="bg-white rounded-lg p-2.5 border border-neutral-200/80">
-              <p className="text-[10px] uppercase font-semibold text-neutral-500">Confirmed Orders</p>
-              <p className="text-base font-bold text-neutral-900">{confirmedOrders.length}</p>
-            </div>
-            <div className="bg-white rounded-lg p-2.5 border border-neutral-200/80">
-              <p className="text-[10px] uppercase font-semibold text-neutral-500">Pending Inquiries</p>
-              <p className="text-base font-bold text-amber-600">{pendingOrders.length}</p>
-            </div>
-            <div className="bg-white rounded-lg p-2.5 border border-neutral-200/80">
-              <p className="text-[10px] uppercase font-semibold text-neutral-500">Confirmed Revenue</p>
-              <p className="text-base font-bold font-mono text-neutral-900">{formatLKR(totalRevenue)}</p>
-            </div>
-            <div className="bg-white rounded-lg p-2.5 border border-neutral-200/80">
-              <p className="text-[10px] uppercase font-semibold text-neutral-500">Gross Profit</p>
-              <p className="text-base font-bold font-mono text-[#FF8C00]">{formatLKR(grossProfit)}</p>
-            </div>
-          </div>
-
-          {hasIncomplete && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-              <span>
-                One or more confirmed orders have incomplete service pricing. Missing amounts are excluded
-                from totals. You can update them at any time.
-              </span>
-            </div>
-          )}
+          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-neutral-900 text-white">
+            {campaign.campaign_code}
+          </span>
         </div>
 
-        {/* Closing Status & Date */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Status & End Date */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Select
-            label="Target Status"
+            label="Campaign Status"
             value={targetStatus}
             onChange={e => setTargetStatus(e.target.value as CampaignStatus)}
             options={[
               { value: 'closed', label: 'Closed (Finalized session)' },
               { value: 'review', label: 'Closing / In Review' },
-              { value: 'running', label: 'Keep Running (Update spend only)' },
+              { value: 'running', label: 'Running (Keep Active)' },
             ]}
           />
 
@@ -282,13 +216,13 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
           />
         </div>
 
-        {/* Final Advertising Expenditure Section */}
+        {/* Final Advertising Expenditure */}
         <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-800 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-[#FF8C00]" /> Actual Final Advertising Spend
+              <DollarSign className="w-4 h-4 text-[#FF8C00]" /> Actual Meta Advertising Spend
             </span>
-            <span className="text-[11px] text-neutral-500">Enter final Meta Ads invoice amount</span>
+            <span className="text-[11px] text-neutral-500">Facebook Meta Ads invoice</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -310,7 +244,7 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
               label="Exchange Rate (USD to LKR)"
               value={exchangeRate}
               onChange={e => handleRateChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              helperText="Conversion rate used"
+              helperText="Conversion rate"
             />
 
             <Input
@@ -320,19 +254,19 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
               label="Final Ad Spend (LKR)"
               value={adSpendLkr}
               onChange={e => setAdSpendLkr(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              helperText="Calculated or manual LKR"
+              helperText="Calculated LKR"
             />
           </div>
         </div>
 
-        {/* Additional Operational Expenses Section */}
+        {/* Operational Expenses (Packaging, Courier, etc.) */}
         <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-800 flex items-center gap-1.5">
-                <Receipt className="w-4 h-4 text-neutral-600" /> Additional Campaign Expenses
+                <Receipt className="w-4 h-4 text-neutral-600" /> Operational Expenses
               </span>
-              <p className="text-[11px] text-neutral-500">Packaging, delivery couriers, material purchases</p>
+              <p className="text-[11px] text-neutral-500">Packaging boxes, courier fees, reload costs</p>
             </div>
             <Button
               type="button"
@@ -345,8 +279,7 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
             </Button>
           </div>
 
-          {/* List existing & pending expenses */}
-          <div className="space-y-1.5 max-h-36 overflow-y-auto">
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
             {expenses
               .filter(e => e.campaign_id === campaign.id)
               .map(exp => (
@@ -388,11 +321,10 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
 
             {expenses.filter(e => e.campaign_id === campaign.id).length === 0 &&
               pendingNewExpenses.length === 0 && (
-                <p className="text-xs text-neutral-400 py-1 text-center">No other operational expenses recorded.</p>
+                <p className="text-xs text-neutral-400 py-1 text-center">No other expenses recorded.</p>
               )}
           </div>
 
-          {/* Inline quick add */}
           {showInlineExpense && (
             <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2 animate-in fade-in">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -410,7 +342,7 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
 
                 <input
                   type="text"
-                  placeholder="Description (e.g. Courier charge)"
+                  placeholder="Description (e.g. Courier fee)"
                   className="text-xs rounded border border-neutral-200 p-1.5"
                   value={quickExpDesc}
                   onChange={e => setQuickExpDesc(e.target.value)}
@@ -438,38 +370,30 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
           )}
         </div>
 
-        {/* Final Financial Summary Highlight Box */}
-        <div className="rounded-xl border border-neutral-200 bg-neutral-900 text-white p-5 shadow-md">
-          <div className="flex items-center justify-between mb-3 border-b border-neutral-800 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
-              Final Campaign Financial Settlement
-            </span>
-            <span className="text-xs text-[#FF8C00] font-semibold">
-              Gross Profit − Ad Spend − Other Expenses
-            </span>
+        {/* Total Ad & Campaign Expenditure Summary */}
+        <div className="rounded-xl border border-neutral-200 bg-neutral-900 text-white p-4">
+          <div className="flex items-center justify-between mb-2 pb-2 border-b border-neutral-800 text-xs text-neutral-400">
+            <span>Total Campaign Expenditure</span>
+            <span>Meta Ads + Operational Costs</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Gross Profit</p>
-              <p className="text-sm font-bold font-mono text-neutral-200">{formatLKR(grossProfit)}</p>
+              <p className="text-[10px] text-neutral-400 uppercase">Ad Spend (USD)</p>
+              <p className="text-sm font-bold font-mono text-white">
+                ${Number(adSpendUsd || 0).toFixed(2)}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Ad Spend (LKR)</p>
-              <p className="text-sm font-bold font-mono text-red-400">− {formatLKR(currentAdSpendLkr)}</p>
+              <p className="text-[10px] text-neutral-400 uppercase">Ad Spend (LKR)</p>
+              <p className="text-sm font-bold font-mono text-[#FF8C00]">
+                {formatLKR(currentAdSpendLkr)}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Other Expenses</p>
-              <p className="text-sm font-bold font-mono text-amber-400">− {formatLKR(totalOtherExpenses)}</p>
-            </div>
-            <div className="bg-neutral-800 rounded-lg p-1.5 border border-neutral-700">
-              <p className="text-[10px] text-[#FF8C00] uppercase tracking-wider font-bold">Net Profit</p>
-              <p
-                className={`text-base font-extrabold font-mono ${
-                  finalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {formatLKR(finalNetProfit)}
+              <p className="text-[10px] text-neutral-400 uppercase">Total Expenditure</p>
+              <p className="text-sm font-bold font-mono text-emerald-400">
+                {formatLKR(totalCampaignCost)}
               </p>
             </div>
           </div>
@@ -481,7 +405,7 @@ export const CampaignCloseModal: React.FC<CampaignCloseModalProps> = ({
             Cancel
           </Button>
           <Button variant="primary" size="sm" type="submit" isLoading={isSubmitting}>
-            Save Financial Summary & Update Status
+            Save Ad Spend
           </Button>
         </div>
       </form>

@@ -5,15 +5,12 @@ import {
   Plus,
   Search,
   Download,
-  DollarSign,
-  TrendingUp,
-  Receipt,
   RotateCcw,
   ChevronDown,
   ChevronRight,
-  AlertTriangle,
   Edit2,
   Trash2,
+  Globe,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -21,22 +18,15 @@ import { TableSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { adCampaignService } from '../../services/adCampaignService';
 import {
-  calculateCampaignFinancials,
-  calculateLedgerOverallMetrics,
-} from '../../services/adCalculations';
-import {
   AdCampaign,
-  AdCampaignOrder,
   AdCampaignExpense,
   CampaignStatus,
-  OrderStatus,
 } from '../../types';
 import { formatLKR, formatDate } from '../../lib/formatters';
 import { exportToCsv } from '../../lib/csv';
 import { CampaignStatusBadge } from './components/Badges';
 import { CampaignDetailSection } from './components/CampaignDetailSection';
 import { CampaignModal } from './CampaignModal';
-import { OrderModal } from './OrderModal';
 import { CampaignCloseModal } from './CampaignCloseModal';
 import { CampaignExpenseModal } from './CampaignExpenseModal';
 import { toast } from 'sonner';
@@ -56,10 +46,6 @@ export const AdCampaignLedgerPage: React.FC = () => {
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [campaignToEdit, setCampaignToEdit] = useState<AdCampaign | null>(null);
 
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const [orderToEdit, setOrderToEdit] = useState<AdCampaignOrder | null>(null);
-  const [orderModalCampaignId, setOrderModalCampaignId] = useState<string | null>(null);
-
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [campaignToClose, setCampaignToClose] = useState<AdCampaign | null>(null);
 
@@ -69,7 +55,6 @@ export const AdCampaignLedgerPage: React.FC = () => {
 
   // Deletion confirm dialogs
   const [campaignToDelete, setCampaignToDelete] = useState<AdCampaign | null>(null);
-  const [orderToDelete, setOrderToDelete] = useState<AdCampaignOrder | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<AdCampaignExpense | null>(null);
 
   // 1. Fetch campaigns
@@ -78,19 +63,13 @@ export const AdCampaignLedgerPage: React.FC = () => {
     queryFn: () => adCampaignService.getCampaigns(),
   });
 
-  // 2. Fetch all orders
-  const { data: orders = [], isLoading: isLoadingOrders } = useQuery<AdCampaignOrder[]>({
-    queryKey: ['ad-orders'],
-    queryFn: () => adCampaignService.getOrders(),
-  });
-
-  // 3. Fetch all expenses
+  // 2. Fetch expenses
   const { data: expenses = [], isLoading: isLoadingExpenses } = useQuery<AdCampaignExpense[]>({
     queryKey: ['ad-expenses'],
     queryFn: () => adCampaignService.getExpenses(),
   });
 
-  const isLoading = isLoadingCampaigns || isLoadingOrders || isLoadingExpenses;
+  const isLoading = isLoadingCampaigns || isLoadingExpenses;
 
   // Mutations
   const campaignMutation = useMutation({
@@ -113,51 +92,12 @@ export const AdCampaignLedgerPage: React.FC = () => {
     mutationFn: async (id: string) => adCampaignService.deleteCampaign(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ad-campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['ad-orders'] });
       queryClient.invalidateQueries({ queryKey: ['ad-expenses'] });
       toast.success('Campaign removed');
       setCampaignToDelete(null);
     },
     onError: err => {
       toast.error('Failed to delete campaign: ' + (err as Error).message);
-    },
-  });
-
-  const orderMutation = useMutation({
-    mutationFn: async ({ orderData, services }: { orderData: any; services: any[] }) => {
-      if (orderToEdit) {
-        return adCampaignService.updateOrder(orderToEdit.id, orderData, services);
-      }
-      return adCampaignService.createOrder(orderData, services);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ad-orders'] });
-      toast.success(orderToEdit ? 'Order updated' : 'Order recorded');
-    },
-    onError: err => {
-      toast.error('Failed to save order: ' + (err as Error).message);
-    },
-  });
-
-  const deleteOrderMutation = useMutation({
-    mutationFn: async (id: string) => adCampaignService.deleteOrder(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ad-orders'] });
-      toast.success('Order deleted');
-      setOrderToDelete(null);
-    },
-    onError: err => {
-      toast.error('Failed to delete order: ' + (err as Error).message);
-    },
-  });
-
-  const orderStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
-      return adCampaignService.updateOrderStatus(id, status);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ad-orders'] });
-      toast.success('Order status updated');
     },
   });
 
@@ -203,10 +143,10 @@ export const AdCampaignLedgerPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ad-campaigns'] });
       queryClient.invalidateQueries({ queryKey: ['ad-expenses'] });
-      toast.success('Campaign review saved successfully');
+      toast.success('Ad spend settlement saved');
     },
     onError: err => {
-      toast.error('Failed to close campaign: ' + (err as Error).message);
+      toast.error('Failed to settle spend: ' + (err as Error).message);
     },
   });
 
@@ -239,42 +179,68 @@ export const AdCampaignLedgerPage: React.FC = () => {
     return true;
   });
 
-  // Top summary cards metrics across filtered campaigns
-  const metrics = calculateLedgerOverallMetrics(filteredCampaigns, orders, expenses);
+  // Metrics for Ad Campaigns
+  let totalAdSpendUsd = 0;
+  let totalAdSpendLkr = 0;
+  let totalOtherExpensesLkr = 0;
+  let runningCount = 0;
+  let closedCount = 0;
+
+  filteredCampaigns.forEach(campaign => {
+    if (campaign.status === 'running') runningCount += 1;
+    if (campaign.status === 'closed') closedCount += 1;
+
+    const usd = Number(campaign.ad_spend_usd) || 0;
+    const rate = Number(campaign.exchange_rate) || 305;
+    const lkr = Number(campaign.ad_spend_lkr) > 0 ? Number(campaign.ad_spend_lkr) : usd * rate;
+
+    totalAdSpendUsd += usd;
+    totalAdSpendLkr += lkr;
+
+    const campExpenses = expenses
+      .filter(e => e.campaign_id === campaign.id)
+      .reduce((sum, e) => sum + (Number(e.amount_lkr) || Number(e.amount) || 0), 0);
+
+    totalOtherExpensesLkr += campExpenses;
+  });
+
+  const totalAllExpenditure = totalAdSpendLkr + totalOtherExpensesLkr;
 
   // Reset to Sample Data Handler
   const handleResetSampleData = () => {
     adCampaignService.resetToSampleData();
     queryClient.invalidateQueries({ queryKey: ['ad-campaigns'] });
-    queryClient.invalidateQueries({ queryKey: ['ad-orders'] });
     queryClient.invalidateQueries({ queryKey: ['ad-expenses'] });
-    toast.success('Data reset to standard sample campaigns & orders');
+    toast.success('Ad campaigns reset to sample data');
   };
 
   // Export CSV Handler
   const handleExportCsv = () => {
     const rows = filteredCampaigns.map(c => {
-      const fin = calculateCampaignFinancials(c, orders, expenses);
+      const campExp = expenses
+        .filter(e => e.campaign_id === c.id)
+        .reduce((sum, e) => sum + (Number(e.amount_lkr) || Number(e.amount) || 0), 0);
+      const usd = Number(c.ad_spend_usd) || 0;
+      const rate = Number(c.exchange_rate) || 305;
+      const lkr = Number(c.ad_spend_lkr) > 0 ? Number(c.ad_spend_lkr) : usd * rate;
+
       return {
         'Campaign ID': c.campaign_code,
         'Campaign Name': c.name,
-        'Facebook Ref': c.fb_campaign_ref || '',
+        'Facebook Ad Reference': c.fb_campaign_ref || '',
         'Start Date': c.start_date,
-        'End Date': c.end_date || 'Running',
+        'End Date': c.end_date || 'Active',
         Status: c.status.toUpperCase(),
-        'Ad Spend (USD)': fin.ad_spend_usd.toFixed(2),
-        'Ad Spend (LKR)': fin.ad_spend_lkr.toFixed(2),
-        'Confirmed Orders': fin.confirmed_orders_count,
-        'Pending Inquiries': fin.pending_orders_count,
-        'Total Revenue (LKR)': fin.total_revenue.toFixed(2),
-        'Supplier Costs (LKR)': fin.total_supplier_costs.toFixed(2),
-        'Gross Profit (LKR)': fin.gross_profit.toFixed(2),
-        'Other Expenses (LKR)': fin.other_expenses_lkr.toFixed(2),
-        'Net Profit (LKR)': fin.net_profit.toFixed(2),
+        'Ad Spend (USD)': usd.toFixed(2),
+        'Exchange Rate (LKR/USD)': rate.toFixed(2),
+        'Ad Spend (LKR)': lkr.toFixed(2),
+        'Other Expenses (LKR)': campExp.toFixed(2),
+        'Total Cost (LKR)': (lkr + campExp).toFixed(2),
+        Notes: c.notes || '',
       };
     });
     exportToCsv(`ad-campaign-ledger-${new Date().toISOString().slice(0, 10)}.csv`, rows);
-    toast.success('Campaign ledger exported to CSV');
+    toast.success('Ad Campaign ledger exported to CSV');
   };
 
   return (
@@ -291,7 +257,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Session-by-session Facebook ad campaigns, confirmed orders, supplier costs, and net business profit.
+            Facebook advertising campaigns, ad spend tracking in USD & LKR, and operational costs.
           </p>
         </div>
 
@@ -301,7 +267,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
             size="sm"
             leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             onClick={handleResetSampleData}
-            title="Reset to sample orders & campaigns"
+            title="Reset sample campaigns"
           >
             Sample Data
           </Button>
@@ -313,20 +279,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
             onClick={handleExportCsv}
             disabled={filteredCampaigns.length === 0}
           >
-            Export
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-            onClick={() => {
-              setOrderToEdit(null);
-              setOrderModalCampaignId(expandedCampaignId || null);
-              setIsOrderModalOpen(true);
-            }}
-          >
-            + Add Order
+            Export CSV
           </Button>
 
           <Button
@@ -343,149 +296,64 @@ export const AdCampaignLedgerPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Top Summary Cards (Section 3 of Prompt) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 mb-6">
-        {/* Card 1: Total Advertising Spend */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider truncate">
-                Advertising Spend
-              </span>
-              <div className="w-5 h-5 rounded-md bg-orange-50 flex items-center justify-center text-[#FF8C00] shrink-0">
-                <Megaphone className="w-3 h-3" />
-              </div>
-            </div>
-            <div className="font-mono font-bold text-base text-neutral-900 truncate">
-              ${metrics.total_ad_spend_usd.toFixed(2)} USD
-            </div>
-            <div className="text-[11px] font-mono text-neutral-500 mt-0.5 truncate">
-              ≈ {formatLKR(metrics.total_ad_spend_lkr)}
-            </div>
+      {/* 2. Top Summary KPI Cards (Focused strictly on Ad Information & Spend) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">
+        {/* Card 1: Total Ad Spend (USD) */}
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+            Total Ad Spend (USD)
+          </span>
+          <div className="font-mono font-bold text-lg text-neutral-900 mt-1">
+            ${totalAdSpendUsd.toFixed(2)} USD
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 truncate">Across {filteredCampaigns.length} campaigns</p>
+          <p className="text-[10px] text-neutral-400 mt-1.5">Across {filteredCampaigns.length} campaigns</p>
         </div>
 
-        {/* Card 2: Total Confirmed Revenue */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider truncate">
-                Confirmed Revenue
-              </span>
-              <div className="w-5 h-5 rounded-md bg-orange-50 flex items-center justify-center text-[#FF8C00] shrink-0">
-                <DollarSign className="w-3 h-3" />
-              </div>
-            </div>
-            <div className="font-mono font-bold text-base text-neutral-900 truncate">
-              {formatLKR(metrics.total_confirmed_revenue)}
-            </div>
-            <div className="text-[11px] text-neutral-500 mt-0.5 truncate">Valid client orders</div>
+        {/* Card 2: Total Ad Spend (LKR) */}
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+            Total Ad Spend (LKR)
+          </span>
+          <div className="font-mono font-bold text-lg text-[#FF8C00] mt-1">
+            {formatLKR(totalAdSpendLkr)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 truncate">Inquiries excluded</p>
+          <p className="text-[10px] text-neutral-400 mt-1.5">Converted at bank rate</p>
         </div>
 
-        {/* Card 3: Total Supplier Costs */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider truncate">
-                Supplier Costs
-              </span>
-              <div className="w-5 h-5 rounded-md bg-orange-50 flex items-center justify-center text-[#FF8C00] shrink-0">
-                <Receipt className="w-3 h-3" />
-              </div>
-            </div>
-            <div className="font-mono font-bold text-base text-neutral-700 truncate">
-              {formatLKR(metrics.total_supplier_costs)}
-            </div>
-            <div className="text-[11px] text-neutral-500 mt-0.5 truncate">Outsource & direct</div>
+        {/* Card 3: Running Advertisements */}
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+            Running Advertisements
+          </span>
+          <div className="font-mono font-bold text-lg text-emerald-700 mt-1 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            {runningCount} Active
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 truncate">Fabrication & parts</p>
+          <p className="text-[10px] text-neutral-400 mt-1.5">Currently receiving inquiries</p>
         </div>
 
-        {/* Card 4: Gross Profit */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider truncate">
-                Gross Profit
-              </span>
-              <div className="w-5 h-5 rounded-md bg-orange-50 flex items-center justify-center text-[#FF8C00] shrink-0">
-                <TrendingUp className="w-3 h-3" />
-              </div>
-            </div>
-            <div className="font-mono font-bold text-base text-[#FF8C00] truncate">
-              {formatLKR(metrics.gross_profit)}
-            </div>
-            <div className="text-[11px] text-neutral-500 mt-0.5 truncate">Revenue − Costs</div>
+        {/* Card 4: Closed Campaigns */}
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+            Closed Campaigns
+          </span>
+          <div className="font-mono font-bold text-lg text-neutral-800 mt-1">
+            {closedCount} Closed
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 truncate">Order contribution</p>
+          <p className="text-[10px] text-neutral-400 mt-1.5">Finalized ad sessions</p>
         </div>
 
-        {/* Card 5: Other Expenses */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider truncate">
-                Other Expenses
-              </span>
-              <div className="w-5 h-5 rounded-md bg-orange-50 flex items-center justify-center text-[#FF8C00] shrink-0">
-                <Receipt className="w-3 h-3" />
-              </div>
-            </div>
-            <div className="font-mono font-bold text-base text-neutral-700 truncate">
-              {formatLKR(metrics.other_expenses_lkr)}
-            </div>
-            <div className="text-[11px] text-neutral-500 mt-0.5 truncate">Courier & boxes</div>
+        {/* Card 5: Operational Expenses */}
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs hover:border-neutral-300 transition-all">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+            Operational Expenses
+          </span>
+          <div className="font-mono font-bold text-lg text-neutral-700 mt-1">
+            {formatLKR(totalOtherExpensesLkr)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 truncate">Operational costs</p>
-        </div>
-
-        {/* Card 6: Net Profit */}
-        <div
-          className={`border rounded-xl p-3.5 shadow-2xs transition-all flex flex-col justify-between ${
-            metrics.net_profit >= 0
-              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-              : 'bg-rose-50/70 border-rose-200 text-rose-950'
-          }`}
-        >
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider truncate">
-                Net Profit
-              </span>
-              <div
-                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
-                  metrics.net_profit >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                }`}
-              >
-                <TrendingUp className="w-3 h-3" />
-              </div>
-            </div>
-            <div
-              className={`font-mono font-extrabold text-base truncate ${
-                metrics.net_profit >= 0 ? 'text-emerald-700' : 'text-rose-700'
-              }`}
-            >
-              {formatLKR(metrics.net_profit)}
-            </div>
-            <div className="text-[11px] text-neutral-600 mt-0.5 truncate">After Ads & Operations</div>
-          </div>
-          <p className="text-[10px] text-neutral-500 mt-2 truncate">Real bottom-line</p>
+          <p className="text-[10px] text-neutral-400 mt-1.5">Packaging, courier, reloads</p>
         </div>
       </div>
-
-      {/* Incomplete Records Global Banner */}
-      {metrics.has_incomplete_records && (
-        <div className="mb-4 flex items-center gap-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-2xs">
-          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-          <span>
-            <strong>Note:</strong> Some orders have incomplete service pricing (such as pending supplier quotes).
-            Missing amounts are excluded from revenue and profit calculations to ensure accurate business accounting.
-          </span>
-        </div>
-      )}
 
       {/* 3. Filters and Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -494,7 +362,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search campaign name, ID, or Facebook reference..."
+            placeholder="Search campaign name, code, or Facebook ref..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-[#FF8C00]"
@@ -567,14 +435,14 @@ export const AdCampaignLedgerPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Campaign Ledger Table */}
+      {/* 4. Ad Campaign Information Table */}
       {isLoading ? (
-        <TableSkeleton rows={6} cols={10} />
+        <TableSkeleton rows={6} cols={9} />
       ) : filteredCampaigns.length === 0 ? (
         <EmptyState
           icon={<Megaphone className="w-8 h-8 text-[#FF8C00]" />}
           title="No advertising campaigns found"
-          description="Create your first Facebook advertising campaign session to start tracking ad spend and orders."
+          description="Create your first Facebook advertising campaign session to start tracking ad spend."
           actionLabel="+ New Ad Campaign"
           onAction={() => {
             setCampaignToEdit(null);
@@ -587,22 +455,28 @@ export const AdCampaignLedgerPage: React.FC = () => {
             <thead>
               <tr className="bg-neutral-100/90 text-neutral-700 font-bold uppercase border-b border-neutral-200 text-[11px]">
                 <th className="w-8 px-2 py-3"></th>
-                <th className="px-3 py-3">Campaign / ID</th>
+                <th className="px-3 py-3">Campaign Code</th>
+                <th className="px-3 py-3">Campaign Title</th>
+                <th className="px-3 py-3">Facebook Reference</th>
                 <th className="px-3 py-3">Period</th>
                 <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3 text-right">Ad Spend</th>
-                <th className="px-3 py-3 text-center">Confirmed Orders</th>
-                <th className="px-3 py-3 text-right">Total Revenue</th>
-                <th className="px-3 py-3 text-right">Supplier Costs</th>
-                <th className="px-3 py-3 text-right">Gross Profit</th>
-                <th className="px-3 py-3 text-right font-extrabold">Net Profit</th>
+                <th className="px-3 py-3 text-right">Ad Spend (USD)</th>
+                <th className="px-3 py-3 text-right">Exchange Rate</th>
+                <th className="px-3 py-3 text-right font-bold">Ad Spend (LKR)</th>
+                <th className="px-3 py-3 text-right">Other Expenses</th>
                 <th className="px-3 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {filteredCampaigns.map(campaign => {
-                const fin = calculateCampaignFinancials(campaign, orders, expenses);
                 const isExpanded = expandedCampaignId === campaign.id;
+                const usd = Number(campaign.ad_spend_usd) || 0;
+                const rate = Number(campaign.exchange_rate) || 305;
+                const lkr = Number(campaign.ad_spend_lkr) > 0 ? Number(campaign.ad_spend_lkr) : usd * rate;
+
+                const campExp = expenses
+                  .filter(e => e.campaign_id === campaign.id)
+                  .reduce((sum, e) => sum + (Number(e.amount_lkr) || Number(e.amount) || 0), 0);
 
                 return (
                   <React.Fragment key={campaign.id}>
@@ -612,7 +486,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
                       }`}
                       onClick={() => setExpandedCampaignId(isExpanded ? null : campaign.id)}
                     >
-                      {/* Expand Chevron Icon */}
+                      {/* Expand Chevron */}
                       <td className="px-2 py-3.5 text-center text-neutral-400">
                         {isExpanded ? (
                           <ChevronDown className="w-4 h-4 text-[#FF8C00]" />
@@ -621,22 +495,38 @@ export const AdCampaignLedgerPage: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Campaign Name & Code */}
-                      <td className="px-3 py-3.5">
-                        <div className="font-semibold text-neutral-900 text-xs flex items-center gap-1.5 flex-wrap">
-                          <span>{campaign.name}</span>
-                          {campaign.fb_campaign_ref && (
-                            <span className="text-[10px] text-neutral-400 font-mono">
-                              ({campaign.fb_campaign_ref})
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-mono text-[10px] text-neutral-500">
+                      {/* Campaign Code */}
+                      <td className="px-3 py-3.5 whitespace-nowrap">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-neutral-900 text-white">
                           {campaign.campaign_code}
                         </span>
                       </td>
 
-                      {/* Start Date & End Date */}
+                      {/* Campaign Title */}
+                      <td className="px-3 py-3.5">
+                        <div className="font-semibold text-neutral-900 text-xs">
+                          {campaign.name}
+                        </div>
+                        {campaign.notes && (
+                          <p className="text-[10px] text-neutral-400 truncate max-w-xs mt-0.5">
+                            {campaign.notes}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Facebook Reference */}
+                      <td className="px-3 py-3.5 whitespace-nowrap">
+                        {campaign.fb_campaign_ref ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            <Globe className="w-3 h-3" />
+                            {campaign.fb_campaign_ref}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* Period */}
                       <td className="px-3 py-3.5 text-neutral-600 whitespace-nowrap">
                         <div className="font-medium text-neutral-800">{formatDate(campaign.start_date)}</div>
                         <div className="text-[10px] text-neutral-400">
@@ -649,50 +539,24 @@ export const AdCampaignLedgerPage: React.FC = () => {
                         <CampaignStatusBadge status={campaign.status} size="sm" />
                       </td>
 
-                      {/* Advertising Spend (USD & LKR) */}
-                      <td className="px-3 py-3.5 text-right whitespace-nowrap">
-                        <div className="font-mono font-bold text-neutral-900">
-                          ${fin.ad_spend_usd.toFixed(2)}
-                        </div>
-                        <div className="font-mono text-[10px] text-neutral-500">
-                          {formatLKR(fin.ad_spend_lkr)}
-                        </div>
+                      {/* Ad Spend USD */}
+                      <td className="px-3 py-3.5 text-right font-mono font-bold text-neutral-900 whitespace-nowrap">
+                        ${usd.toFixed(2)}
                       </td>
 
-                      {/* Confirmed Orders count */}
-                      <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 font-mono font-bold text-neutral-800">
-                          <span>{fin.confirmed_orders_count}</span>
-                          {fin.pending_orders_count > 0 && (
-                            <span className="text-[10px] text-amber-600 font-normal">
-                              (+{fin.pending_orders_count} pend)
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Total Revenue */}
-                      <td className="px-3 py-3.5 text-right font-mono font-semibold text-neutral-900 whitespace-nowrap">
-                        {formatLKR(fin.total_revenue)}
-                      </td>
-
-                      {/* Supplier Costs */}
+                      {/* Exchange Rate */}
                       <td className="px-3 py-3.5 text-right font-mono text-neutral-600 whitespace-nowrap">
-                        {formatLKR(fin.total_supplier_costs)}
+                        {rate.toFixed(2)}
                       </td>
 
-                      {/* Gross Profit */}
-                      <td className="px-3 py-3.5 text-right font-mono font-semibold text-neutral-900 whitespace-nowrap">
-                        {formatLKR(fin.gross_profit)}
+                      {/* Ad Spend LKR */}
+                      <td className="px-3 py-3.5 text-right font-mono font-bold text-[#FF8C00] whitespace-nowrap">
+                        {formatLKR(lkr)}
                       </td>
 
-                      {/* Net Profit */}
-                      <td className="px-3 py-3.5 text-right font-mono font-bold whitespace-nowrap">
-                        <span
-                          className={fin.net_profit >= 0 ? 'text-emerald-700' : 'text-rose-600'}
-                        >
-                          {formatLKR(fin.net_profit)}
-                        </span>
+                      {/* Other Expenses */}
+                      <td className="px-3 py-3.5 text-right font-mono text-neutral-600 whitespace-nowrap">
+                        {campExp > 0 ? formatLKR(campExp) : '-'}
                       </td>
 
                       {/* Actions */}
@@ -704,26 +568,13 @@ export const AdCampaignLedgerPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              setOrderToEdit(null);
-                              setOrderModalCampaignId(campaign.id);
-                              setIsOrderModalOpen(true);
-                            }}
-                            className="px-2 py-1 text-[11px] font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded transition-colors"
-                            title="Add Order to this campaign"
-                          >
-                            + Order
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
                               setCampaignToClose(campaign);
                               setIsCloseModalOpen(true);
                             }}
                             className="px-2 py-1 text-[11px] font-semibold text-[#FF8C00] bg-orange-50 hover:bg-orange-100 rounded transition-colors"
-                            title="Review / Close campaign"
+                            title="Settle final Meta spend"
                           >
-                            Review
+                            Settle Spend
                           </button>
 
                           <button
@@ -750,28 +601,13 @@ export const AdCampaignLedgerPage: React.FC = () => {
                       </td>
                     </tr>
 
-                    {/* 5. Expanded Inline Section */}
+                    {/* 5. Expanded Ad Campaign Detail Section (Pure Ad Information & Expenses) */}
                     {isExpanded && (
                       <tr>
                         <td colSpan={11} className="p-0 border-b border-neutral-200">
                           <CampaignDetailSection
                             campaign={campaign}
-                            orders={orders}
                             expenses={expenses}
-                            onAddOrder={cId => {
-                              setOrderToEdit(null);
-                              setOrderModalCampaignId(cId);
-                              setIsOrderModalOpen(true);
-                            }}
-                            onEditOrder={ord => {
-                              setOrderToEdit(ord);
-                              setOrderModalCampaignId(ord.campaign_id);
-                              setIsOrderModalOpen(true);
-                            }}
-                            onDeleteOrder={ord => setOrderToDelete(ord)}
-                            onConfirmOrder={ordId => {
-                              orderStatusMutation.mutate({ id: ordId, status: 'confirmed' });
-                            }}
                             onAddExpense={cId => {
                               setExpenseModalCampaignId(cId);
                               setExpenseToEdit(null);
@@ -799,7 +635,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
       )}
 
       {/* MODALS */}
-      {/* 1. Campaign Modal */}
+      {/* 1. Campaign Modal (Create / Edit) */}
       <CampaignModal
         isOpen={isCampaignModalOpen}
         onClose={() => setIsCampaignModalOpen(false)}
@@ -809,24 +645,11 @@ export const AdCampaignLedgerPage: React.FC = () => {
         }}
       />
 
-      {/* 2. Order Modal */}
-      <OrderModal
-        isOpen={isOrderModalOpen}
-        onClose={() => setIsOrderModalOpen(false)}
-        orderToEdit={orderToEdit}
-        defaultCampaignId={orderModalCampaignId}
-        campaigns={campaigns}
-        onSave={async (orderData, services) => {
-          await orderMutation.mutateAsync({ orderData, services });
-        }}
-      />
-
-      {/* 3. Campaign Close Modal */}
+      {/* 2. Settle Spend & Close Campaign Modal */}
       <CampaignCloseModal
         isOpen={isCloseModalOpen}
         onClose={() => setIsCloseModalOpen(false)}
         campaign={campaignToClose}
-        orders={orders}
         expenses={expenses}
         onSaveAndClose={async (campaignId, updates, newExpenses) => {
           await closeCampaignMutation.mutateAsync({ campaignId, updates, newExpenses });
@@ -840,7 +663,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
         }}
       />
 
-      {/* 4. Campaign Expense Modal */}
+      {/* 3. Campaign Expense Modal */}
       <CampaignExpenseModal
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
@@ -852,7 +675,6 @@ export const AdCampaignLedgerPage: React.FC = () => {
       />
 
       {/* CONFIRM DELETE DIALOGS */}
-      {/* Delete Campaign */}
       <ConfirmDialog
         isOpen={Boolean(campaignToDelete)}
         onClose={() => setCampaignToDelete(null)}
@@ -860,27 +682,12 @@ export const AdCampaignLedgerPage: React.FC = () => {
           if (campaignToDelete) deleteCampaignMutation.mutate(campaignToDelete.id);
         }}
         title="Delete Ad Campaign"
-        message={`Are you sure you want to delete campaign "${campaignToDelete?.name}" (${campaignToDelete?.campaign_code})? Any associated orders will become unassigned.`}
+        message={`Are you sure you want to delete campaign "${campaignToDelete?.name}" (${campaignToDelete?.campaign_code})?`}
         confirmText="Delete Campaign"
         isDestructive
         isLoading={deleteCampaignMutation.isPending}
       />
 
-      {/* Delete Order */}
-      <ConfirmDialog
-        isOpen={Boolean(orderToDelete)}
-        onClose={() => setOrderToDelete(null)}
-        onConfirm={() => {
-          if (orderToDelete) deleteOrderMutation.mutate(orderToDelete.id);
-        }}
-        title="Delete Order"
-        message={`Are you sure you want to delete order "${orderToDelete?.order_name}" (${orderToDelete?.order_number})?`}
-        confirmText="Delete Order"
-        isDestructive
-        isLoading={deleteOrderMutation.isPending}
-      />
-
-      {/* Delete Expense */}
       <ConfirmDialog
         isOpen={Boolean(expenseToDelete)}
         onClose={() => setExpenseToDelete(null)}
@@ -888,7 +695,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
           if (expenseToDelete) deleteExpenseMutation.mutate(expenseToDelete.id);
         }}
         title="Delete Expense"
-        message={`Are you sure you want to delete this operational expense "${expenseToDelete?.description}" (${formatLKR(
+        message={`Are you sure you want to delete this expense "${expenseToDelete?.description}" (${formatLKR(
           expenseToDelete?.amount_lkr || expenseToDelete?.amount
         )})?`}
         confirmText="Delete Expense"
