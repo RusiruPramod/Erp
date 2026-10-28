@@ -40,7 +40,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<'all' | '30days' | 'thisMonth'>('all');
 
   // Expanded row state
-  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>('camp-run-001');
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>('camp-closed-236');
 
   // Modals state
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);

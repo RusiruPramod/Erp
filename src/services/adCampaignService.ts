@@ -8,123 +8,89 @@ import {
   OrderStatus,
 } from '../types';
 
-const STORAGE_KEY_CAMPAIGNS = 'codecrew_ad_campaigns_v1';
-const STORAGE_KEY_ORDERS = 'codecrew_ad_orders_v1';
-const STORAGE_KEY_EXPENSES = 'codecrew_ad_expenses_v1';
+const STORAGE_KEY_CAMPAIGNS = 'codecrew_ad_campaigns_v5';
+const STORAGE_KEY_ORDERS = 'codecrew_ad_orders_v5';
+const STORAGE_KEY_EXPENSES = 'codecrew_ad_expenses_v5';
 
-// Seed sample records matching the user's explicit business prompt
+// Purge obsolete legacy mock data caches so browser displays only user's exact data
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    ['v1', 'v2', 'v3', 'v4'].forEach(v => {
+      localStorage.removeItem(`codecrew_ad_campaigns_${v}`);
+      localStorage.removeItem(`codecrew_ad_orders_${v}`);
+      localStorage.removeItem(`codecrew_ad_expenses_${v}`);
+    });
+  } catch (_) {}
+}
+
+// Seed ONLY the exact records specified in user's prompt
 export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
   {
-    id: 'camp-hist-001',
-    campaign_code: 'CAMP-HIST-01',
-    name: 'Historical Ad Campaign — Wave 1',
-    fb_campaign_ref: 'FB-ACT-701',
+    id: 'camp-hist-total',
+    campaign_code: 'CAMP-HIST-TOTAL',
+    name: 'Historical Ad Campaign ($3.45 + $4.46 + $0.28 + $1.77 + $0.28)',
+    fb_campaign_ref: 'FB-HIST-ALL',
     start_date: '2026-09-01',
-    end_date: '2026-09-05',
-    status: 'closed',
-    ad_spend_usd: 3.45,
-    exchange_rate: 305.0,
-    ad_spend_lkr: 1052.25,
-    notes: 'Historical advertising record ($3.45)',
-    created_at: '2026-09-01T10:00:00Z',
-    updated_at: '2026-09-05T18:00:00Z',
-  },
-  {
-    id: 'camp-hist-002',
-    campaign_code: 'CAMP-HIST-02',
-    name: 'Historical Ad Campaign — Wave 2',
-    fb_campaign_ref: 'FB-ACT-702',
-    start_date: '2026-09-08',
-    end_date: '2026-09-12',
-    status: 'closed',
-    ad_spend_usd: 4.46,
-    exchange_rate: 305.0,
-    ad_spend_lkr: 1360.3,
-    notes: 'Historical advertising record ($4.46)',
-    created_at: '2026-09-08T10:00:00Z',
-    updated_at: '2026-09-12T18:00:00Z',
-  },
-  {
-    id: 'camp-hist-003',
-    campaign_code: 'CAMP-HIST-03',
-    name: 'Historical Ad Campaign — Wave 3',
-    fb_campaign_ref: 'FB-ACT-703',
-    start_date: '2026-09-15',
-    end_date: '2026-09-16',
-    status: 'closed',
-    ad_spend_usd: 0.28,
-    exchange_rate: 305.0,
-    ad_spend_lkr: 85.4,
-    notes: 'Historical advertising record ($0.28)',
-    created_at: '2026-09-15T10:00:00Z',
-    updated_at: '2026-09-16T18:00:00Z',
-  },
-  {
-    id: 'camp-hist-004',
-    campaign_code: 'CAMP-HIST-04',
-    name: 'Historical Ad Campaign — Wave 4',
-    fb_campaign_ref: 'FB-ACT-704',
-    start_date: '2026-09-20',
-    end_date: '2026-09-23',
-    status: 'closed',
-    ad_spend_usd: 1.77,
-    exchange_rate: 305.0,
-    ad_spend_lkr: 539.85,
-    notes: 'Historical advertising record ($1.77)',
-    created_at: '2026-09-20T10:00:00Z',
-    updated_at: '2026-09-23T18:00:00Z',
-  },
-  {
-    id: 'camp-hist-005',
-    campaign_code: 'CAMP-HIST-05',
-    name: 'Historical Ad Campaign — Wave 5',
-    fb_campaign_ref: 'FB-ACT-705',
-    start_date: '2026-09-25',
     end_date: '2026-09-26',
     status: 'closed',
-    ad_spend_usd: 0.28,
+    ad_spend_usd: 10.24,
     exchange_rate: 305.0,
-    ad_spend_lkr: 85.4,
-    notes: 'Historical advertising record ($0.28)',
-    created_at: '2026-09-25T10:00:00Z',
+    ad_spend_lkr: 3123.2,
+    notes: 'Total historical ad expenses calculated into one single ad record ($10.24 USD)',
+    created_at: '2026-09-01T10:00:00Z',
     updated_at: '2026-09-26T18:00:00Z',
   },
   {
-    id: 'camp-run-001',
+    id: 'camp-closed-236',
     campaign_code: 'CAMP-2026-001',
-    name: 'Campaign 1 — Medical & IoT Hardware Promo',
-    fb_campaign_ref: 'FB-CAMP-OCT-01',
-    start_date: '2026-10-15',
+    name: 'Ad Campaign — Smart Drug Timer & Safety Equipment',
+    fb_campaign_ref: 'FB-AD-OCT-236',
+    start_date: '2026-10-10',
+    end_date: '2026-10-18',
+    status: 'closed',
+    ad_spend_usd: 2.36,
+    exchange_rate: 305.0,
+    ad_spend_lkr: 719.8,
+    notes: 'Ad campaign closed. Final ad spend: $2.36 (LKR 719.80)',
+    created_at: '2026-10-10T09:00:00Z',
+    updated_at: '2026-10-18T18:00:00Z',
+  },
+  {
+    id: 'camp-run-124',
+    campaign_code: 'CAMP-2026-002',
+    name: 'Currently Running Ad 1',
+    fb_campaign_ref: 'FB-AD-RUN-01',
+    start_date: '2026-10-20',
     end_date: null,
     status: 'running',
     ad_spend_usd: 1.24,
     exchange_rate: 305.0,
     ad_spend_lkr: 378.2,
-    notes: 'Currently running Facebook ad. Inquiries received.',
-    created_at: '2026-10-15T09:00:00Z',
-    updated_at: '2026-10-15T09:00:00Z',
+    notes: 'Currently running Facebook ad ($1.24 spent). Inquiries received, orders pending confirmation.',
+    created_at: '2026-10-20T09:00:00Z',
+    updated_at: '2026-10-20T09:00:00Z',
   },
   {
-    id: 'camp-run-002',
-    campaign_code: 'CAMP-2026-002',
-    name: 'Campaign 2 — Industrial IoT & Helmet Sensor Ads',
-    fb_campaign_ref: 'FB-CAMP-OCT-02',
-    start_date: '2026-10-18',
+    id: 'camp-run-187',
+    campaign_code: 'CAMP-2026-003',
+    name: 'Currently Running Ad 2',
+    fb_campaign_ref: 'FB-AD-RUN-02',
+    start_date: '2026-10-22',
     end_date: null,
     status: 'running',
     ad_spend_usd: 1.87,
     exchange_rate: 305.0,
     ad_spend_lkr: 570.35,
-    notes: 'Currently running Facebook ad. Customer inquiries in discussion.',
-    created_at: '2026-10-18T11:00:00Z',
-    updated_at: '2026-10-18T11:00:00Z',
+    notes: 'Currently running Facebook ad ($1.87 spent). Inquiries received, orders pending confirmation.',
+    created_at: '2026-10-22T11:00:00Z',
+    updated_at: '2026-10-22T11:00:00Z',
   },
 ];
 
 export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
   {
     id: 'ord-001',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-001',
     order_name: 'Smart Dispensing Drug Timer Medicine',
     customer_name: 'Dr. K. Perera',
@@ -142,8 +108,8 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
         service_name: 'PCB Design',
         supplier_type: 'outsourced',
         supplier_cost: 4000,
-        markup: 4000,
-        client_price: 8000,
+        markup: 6000,
+        client_price: 10000,
         is_financial_pending: false,
         notes: 'Schematic + Board layout',
       },
@@ -163,7 +129,7 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
   },
   {
     id: 'ord-002',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-002',
     order_name: 'Safety Helmet',
     customer_name: 'Apex Construction',
@@ -202,9 +168,9 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
   },
   {
     id: 'ord-003',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-003',
-    order_name: 'Safety Helmet',
+    order_name: 'Safety Panel',
     customer_name: 'BuildTech Lanka',
     customer_phone: '0754433221',
     order_date: '2026-10-18',
@@ -241,22 +207,7 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
   },
 ];
 
-export const INITIAL_SAMPLE_EXPENSES: AdCampaignExpense[] = [
-  {
-    id: 'exp-001',
-    campaign_id: 'camp-run-001',
-    category: 'Packaging',
-    description: 'Bubble wrap & electrostatic shielding boxes for PCB shipment',
-    expense_date: '2026-10-17',
-    amount: 850,
-    currency: 'LKR',
-    exchange_rate: 305.0,
-    amount_lkr: 850,
-    notes: 'Courier packaging materials',
-    created_at: '2026-10-17T15:00:00Z',
-    updated_at: '2026-10-17T15:00:00Z',
-  },
-];
+export const INITIAL_SAMPLE_EXPENSES: AdCampaignExpense[] = [];
 
 // Helper: read and write to LocalStorage
 function getLocalCampaigns(): AdCampaign[] {

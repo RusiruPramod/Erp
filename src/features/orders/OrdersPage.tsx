@@ -43,6 +43,18 @@ export const OrdersPage: React.FC = () => {
   const [orderToEdit, setOrderToEdit] = useState<AdCampaignOrder | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<AdCampaignOrder | null>(null);
 
+  // Horizontal row quick-add state
+  const [quickOrderName, setQuickOrderName] = useState('');
+  const [quickCustomer, setQuickCustomer] = useState('');
+  const [quickPhone, setQuickPhone] = useState('');
+  const [quickCampaignId, setQuickCampaignId] = useState('no_campaign');
+  const [quickStatus, setQuickStatus] = useState<OrderStatus>('confirmed');
+  const [quickServiceName, setQuickServiceName] = useState('PCB Design');
+  const [quickSupplierCost, setQuickSupplierCost] = useState<number | ''>(4000);
+  const [quickMarkup, setQuickMarkup] = useState<number | ''>(4000);
+  const [quickClientPrice, setQuickClientPrice] = useState<number | ''>(8000);
+  const [isAddingQuick, setIsAddingQuick] = useState(false);
+
   // Queries
   const { data: orders = [], isLoading: isLoadingOrders } = useQuery<AdCampaignOrder[]>({
     queryKey: ['ad-orders'],
@@ -171,6 +183,57 @@ export const OrdersPage: React.FC = () => {
     });
     exportToCsv(`customer-orders-${new Date().toISOString().slice(0, 10)}.csv`, rows);
     toast.success('Orders exported to CSV');
+  };
+
+  const handleQuickAddRow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickOrderName.trim()) {
+      toast.error('Please enter an order title');
+      return;
+    }
+
+    setIsAddingQuick(true);
+    try {
+      const cost = quickSupplierCost === '' ? 0 : Number(quickSupplierCost);
+      const markup = quickMarkup === '' ? 0 : Number(quickMarkup);
+      const price = quickClientPrice === '' ? cost + markup : Number(quickClientPrice);
+
+      await orderMutation.mutateAsync({
+        orderData: {
+          order_name: quickOrderName.trim(),
+          customer_name: quickCustomer.trim() || null,
+          customer_phone: quickPhone.trim() || null,
+          order_date: new Date().toISOString().slice(0, 10),
+          campaign_id: quickCampaignId === 'no_campaign' ? null : quickCampaignId,
+          status: quickStatus,
+          notes: null,
+        },
+        services: [
+          {
+            position: 1,
+            service_name: quickServiceName.trim() || 'General Service',
+            supplier_type: 'outsourced',
+            supplier_cost: cost,
+            markup: markup,
+            client_price: price,
+            is_financial_pending: false,
+            notes: null,
+          },
+        ],
+      });
+
+      setQuickOrderName('');
+      setQuickCustomer('');
+      setQuickPhone('');
+      setQuickSupplierCost(4000);
+      setQuickMarkup(4000);
+      setQuickClientPrice(8000);
+      toast.success('Order row added horizontally!');
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsAddingQuick(false);
+    }
   };
 
   return (
@@ -372,6 +435,137 @@ export const OrdersPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Horizontal Quick Order Row Entry */}
+      <form
+        onSubmit={handleQuickAddRow}
+        className="mb-4 bg-neutral-50/90 border border-neutral-200/90 rounded-xl p-3 shadow-2xs space-y-2"
+      >
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-bold text-neutral-800 flex items-center gap-1.5 uppercase text-[11px] tracking-wider">
+            <Plus className="w-3.5 h-3.5 text-[#FF8C00]" /> Quick Horizontal Order Input Row
+          </span>
+          <span className="text-[10px] text-neutral-400">
+            Type directly into the horizontal fields and click Add Row
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
+          {/* 1. Order Title */}
+          <div className="col-span-2">
+            <input
+              type="text"
+              placeholder="Order Title (e.g. Smart Drug Timer) *"
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
+              value={quickOrderName}
+              onChange={e => setQuickOrderName(e.target.value)}
+            />
+          </div>
+
+          {/* 2. Customer Name */}
+          <div>
+            <input
+              type="text"
+              placeholder="Client / Friend"
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
+              value={quickCustomer}
+              onChange={e => setQuickCustomer(e.target.value)}
+            />
+          </div>
+
+          {/* 3. Phone */}
+          <div>
+            <input
+              type="text"
+              placeholder="Phone (07...)"
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
+              value={quickPhone}
+              onChange={e => setQuickPhone(e.target.value)}
+            />
+          </div>
+
+          {/* 4. Campaign Association */}
+          <div>
+            <select
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-800 truncate"
+              value={quickCampaignId}
+              onChange={e => setQuickCampaignId(e.target.value)}
+            >
+              <option value="no_campaign">No Campaign (Direct)</option>
+              {campaigns.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.campaign_code}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5. Status */}
+          <div>
+            <select
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-800 font-medium"
+              value={quickStatus}
+              onChange={e => setQuickStatus(e.target.value as OrderStatus)}
+            >
+              <option value="pending">⏳ Pending (Inquiry)</option>
+              <option value="confirmed">✓ Confirmed</option>
+              <option value="in_progress">⚡ In Progress</option>
+              <option value="completed">🎉 Completed</option>
+            </select>
+          </div>
+
+          {/* 6. Service Name */}
+          <div>
+            <input
+              type="text"
+              placeholder="Service (PCB Design)"
+              className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-900"
+              value={quickServiceName}
+              onChange={e => setQuickServiceName(e.target.value)}
+            />
+          </div>
+
+          {/* 7. Supplier Cost & Client Price */}
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              placeholder="Cost"
+              title="Supplier Cost (LKR)"
+              className="w-1/2 text-xs rounded-lg border border-neutral-200 p-2 bg-white font-mono text-neutral-700"
+              value={quickSupplierCost}
+              onChange={e => {
+                const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                setQuickSupplierCost(val);
+                if (typeof val === 'number') {
+                  const m = quickMarkup === '' ? 0 : Number(quickMarkup);
+                  setQuickClientPrice(val + m);
+                }
+              }}
+            />
+            <input
+              type="number"
+              placeholder="Price"
+              title="Client Price (LKR)"
+              className="w-1/2 text-xs rounded-lg border border-neutral-200 p-2 bg-white font-mono font-bold text-neutral-900"
+              value={quickClientPrice}
+              onChange={e => setQuickClientPrice(e.target.value === '' ? '' : parseFloat(e.target.value))}
+            />
+          </div>
+
+          {/* 8. Save Button */}
+          <div>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              className="w-full h-9"
+              isLoading={isAddingQuick}
+            >
+              + Add
+            </Button>
+          </div>
+        </div>
+      </form>
 
       {/* 4. Orders Table */}
       {isLoading ? (

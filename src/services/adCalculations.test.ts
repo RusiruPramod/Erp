@@ -46,7 +46,7 @@ export function runAdCampaignTests(): {
     `Expected isIncomplete: true, got ${svcPending.isIncomplete}`
   );
 
-  // TEST 3: Order 1 — Smart Dispensing Drug Timer Medicine
+  // TEST 3: Order 1 — Smart Dispensing Drug Timer Medicine (Updated 4k/6k/10k)
   const order1: AdCampaignOrder = {
     id: 'ord-001',
     campaign_id: 'camp-run-001',
@@ -67,8 +67,8 @@ export function runAdCampaignTests(): {
         service_name: 'PCB Design',
         supplier_type: 'outsourced',
         supplier_cost: 4000,
-        markup: 4000,
-        client_price: 8000,
+        markup: 6000,
+        client_price: 10000,
         is_financial_pending: false,
       },
       {
@@ -87,9 +87,9 @@ export function runAdCampaignTests(): {
 
   const o1Fin = calculateOrderFinancials(order1, 0, 0);
   assert(
-    'Sample Order 1 Financials',
-    o1Fin.revenue === 11000 && o1Fin.supplier_costs === 6000 && o1Fin.gross_profit === 5000 && !o1Fin.has_incomplete_financials,
-    `Expected Rev 11,000, Costs 6,000, GP 5,000. Got Rev ${o1Fin.revenue}, Costs ${o1Fin.supplier_costs}, GP ${o1Fin.gross_profit}`
+    'Sample Order 1 Financials (PCB 10k + Print 3k)',
+    o1Fin.revenue === 13000 && o1Fin.supplier_costs === 6000 && o1Fin.gross_profit === 7000 && !o1Fin.has_incomplete_financials,
+    `Expected Rev 13,000, Costs 6,000, GP 7,000. Got Rev ${o1Fin.revenue}, Costs ${o1Fin.supplier_costs}, GP ${o1Fin.gross_profit}`
   );
 
   // TEST 4: Order 2 — Safety Helmet
@@ -144,8 +144,8 @@ export function runAdCampaignTests(): {
   const combinedGp = o1Fin.gross_profit + o2Fin.gross_profit;
   assert(
     'Combined Order 1 + Order 2 Totals',
-    combinedRev === 24000 && combinedCosts === 13600 && combinedGp === 10400,
-    `Expected Rev 24,000, Costs 13,600, GP 10,400. Got Rev ${combinedRev}, Costs ${combinedCosts}, GP ${combinedGp}`
+    combinedRev === 26000 && combinedCosts === 13600 && combinedGp === 12400,
+    `Expected Rev 26,000, Costs 13,600, GP 12,400. Got Rev ${combinedRev}, Costs ${combinedCosts}, GP ${combinedGp}`
   );
 
   // TEST 6: Order 3 — Incomplete Order
@@ -229,38 +229,38 @@ export function runAdCampaignTests(): {
   ];
 
   const campFin = calculateCampaignFinancials(campaign1, [order1, order2, order3], c1Expenses);
-  // Order 1 & 2 are confirmed (11,000 + 13,000 = 24,000). Order 3 is pending (excluded).
-  // Total Revenue: 24,000
+  // Order 1 & 2 are confirmed (13,000 + 13,000 = 26,000). Order 3 is pending (excluded).
+  // Total Revenue: 26,000
   // Total Supplier Costs: 13,600
-  // Gross Profit: 10,400
+  // Gross Profit: 12,400
   // Ad Spend LKR: 378.20
   // Other Expenses: 850.00
-  // Net Profit: 10,400 - 378.20 - 850 = 9,171.80
-  const expectedNet = 10400 - 378.2 - 850;
+  // Net Profit: 12,400 - 378.20 - 850 = 11,171.80
+  const expectedNet = 12400 - 378.2 - 850;
   assert(
     'Campaign 1 Revenue, Costs, and Net Profit with Pending Exclusion',
-    campFin.total_revenue === 24000 &&
-      campFin.total_supplier_costs === 13600 &&
-      campFin.gross_profit === 10400 &&
-      campFin.confirmed_orders_count === 2 &&
-      campFin.pending_orders_count === 1 &&
-      Math.abs(campFin.net_profit - expectedNet) < 0.01 &&
-      campFin.has_incomplete_financials === true,
-    `Expected Rev 24,000, GP 10,400, Net ${expectedNet}. Got Rev ${campFin.total_revenue}, GP ${campFin.gross_profit}, Net ${campFin.net_profit}`
+    campFin.total_revenue === 26000 &&
+    campFin.total_supplier_costs === 13600 &&
+    campFin.gross_profit === 12400 &&
+    campFin.confirmed_orders_count === 2 &&
+    campFin.pending_orders_count === 1 &&
+    Math.abs(campFin.net_profit - expectedNet) < 0.01 &&
+    campFin.has_incomplete_financials === true,
+    `Expected Rev 26,000, GP 12,400, Net ${expectedNet}. Got Rev ${campFin.total_revenue}, GP ${campFin.gross_profit}, Net ${campFin.net_profit}`
   );
 
   // TEST 8: Order-Level Advertising Allocation
-  // Order 1: 11,000 / 24,000 * 378.20 = 173.34 LKR
-  // Order 2: 13,000 / 24,000 * 378.20 = 204.86 LKR
+  // Order 1: 13,000 / 26,000 * 378.20 = 189.10 LKR
+  // Order 2: 13,000 / 26,000 * 378.20 = 189.10 LKR
   const o1Allocated = calculateOrderFinancials(order1, campFin.total_revenue, campFin.ad_spend_lkr);
   const o2Allocated = calculateOrderFinancials(order2, campFin.total_revenue, campFin.ad_spend_lkr);
 
-  const expectedO1Alloc = (378.2 * 11000) / 24000;
-  const expectedO2Alloc = (378.2 * 13000) / 24000;
+  const expectedO1Alloc = (378.2 * 13000) / 26000;
+  const expectedO2Alloc = (378.2 * 13000) / 26000;
   assert(
     'Order 1 and 2 Proportional Advertising Allocation',
     Math.abs(o1Allocated.allocated_ad_spend - expectedO1Alloc) < 0.01 &&
-      Math.abs(o2Allocated.allocated_ad_spend - expectedO2Alloc) < 0.01,
+    Math.abs(o2Allocated.allocated_ad_spend - expectedO2Alloc) < 0.01,
     `Expected O1: ${expectedO1Alloc.toFixed(2)}, got ${o1Allocated.allocated_ad_spend.toFixed(2)}. Expected O2: ${expectedO2Alloc.toFixed(2)}, got ${o2Allocated.allocated_ad_spend.toFixed(2)}`
   );
 
