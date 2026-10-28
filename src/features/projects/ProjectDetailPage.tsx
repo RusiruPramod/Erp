@@ -51,23 +51,7 @@ export const ProjectDetailPage: React.FC = () => {
     queryKey: ['project', id],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return {
-          id: id || '00000000-0000-0000-0000-000000000010',
-          name: 'Google Workspace File Sync',
-          customer_id: '00000000-0000-0000-0000-000000000005',
-          customer_name: 'Shamshard Marikkar (Managing Director)',
-          customer_company: 'InterMax (Pvt) Ltd.',
-          customer_phone: '94772078626',
-          project_date: new Date().toISOString(),
-          income: 30000,
-          total_paid: 15000,
-          balance: 15000,
-          total_expenses: 3500,
-          net_profit: 26500,
-          margin_pct: 88.33,
-          status: 'active',
-          notes: 'Migration & desktop file stream synchronization configuration for InterMax teams.',
-        };
+        return null;
       }
       const { data, error } = await supabase
         .from('project_summary')
@@ -83,18 +67,7 @@ export const ProjectDetailPage: React.FC = () => {
   const { data: expenses = [], isLoading: isExpensesLoading } = useQuery({
     queryKey: ['project-expenses', id],
     queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return [
-          {
-            id: 'exp-1',
-            expense_date: new Date().toISOString(),
-            type: 'advertisement',
-            platform: 'Facebook',
-            description: 'Targeted Lead Ad Campaign - IT Support Colombo & Battaramulla',
-            amount: 3500,
-          },
-        ];
-      }
+      if (!isSupabaseConfigured) return [];
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
@@ -109,16 +82,7 @@ export const ProjectDetailPage: React.FC = () => {
   const { data: payments = [], isLoading: isPaymentsLoading } = useQuery({
     queryKey: ['project-payments', id],
     queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return [
-          {
-            id: 'pay-1',
-            payment_date: new Date().toISOString(),
-            amount: 15000,
-            note: '50% Advance Bank Transfer',
-          },
-        ];
-      }
+      if (!isSupabaseConfigured) return [];
       const { data, error } = await supabase
         .from('income_payments')
         .select('*')
@@ -133,18 +97,7 @@ export const ProjectDetailPage: React.FC = () => {
   const { data: documents = [], isLoading: isDocumentsLoading } = useQuery({
     queryKey: ['project-documents', id],
     queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return [
-          {
-            id: 'doc-1',
-            number: 'INV-2026-001',
-            type: 'invoice',
-            total: 30000,
-            status: 'partially_paid',
-            issue_date: new Date().toISOString(),
-          },
-        ];
-      }
+      if (!isSupabaseConfigured) return [];
       const { data, error } = await supabase
         .from('documents')
         .select('*')

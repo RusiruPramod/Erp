@@ -28,30 +28,7 @@ export const LedgerPage: React.FC = () => {
     queryKey: ['ledger', dateRange.startDate, dateRange.endDate],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [
-          {
-            id: '1',
-            entry_date: '2026-10-15',
-            type: 'income',
-            title: '50% Advance Bank Transfer',
-            project_id: '00000000-0000-0000-0000-000000000010',
-            project_name: 'Google Workspace File Sync',
-            category_or_platform: 'Income',
-            amount: 15000,
-            running_balance: 15000,
-          },
-          {
-            id: '2',
-            entry_date: '2026-10-15',
-            type: 'expense',
-            title: 'Targeted Lead Ad Campaign - IT Support Colombo',
-            project_id: '00000000-0000-0000-0000-000000000010',
-            project_name: 'Google Workspace File Sync',
-            category_or_platform: 'Facebook',
-            amount: 3500,
-            running_balance: 11500,
-          },
-        ];
+        return [];
       }
 
       const { data, error } = await supabase.rpc('ledger', {

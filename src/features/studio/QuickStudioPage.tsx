@@ -33,37 +33,28 @@ const blankItem = (): InvoiceItem => ({
 const defaultProject = (): StudioProjectRow => ({
   id: `row-${Date.now()}`,
   rowNumber: 1,
-  date: '2026-10-15',
-  projectName: 'Google Workspace File Sync',
-  clientName: 'Shamshard Marikkar (Managing Director)',
-  clientCompany: 'InterMax (Pvt) Ltd.',
-  clientAttn: 'Shamshard Marikkar (Managing Director)',
-  clientAddress: '435/2, Dutugemunu Rd, Koswatte\nBattaramulla, Sri Lanka.',
-  clientPhone: '+94 77 207 8626',
-  clientEmail: 'intermaxsrilanka@gmail.com',
-  invoiceNumber: 'CC-INV-2026-001',
-  refQuotation: 'CC-GWS-SYNC-2026-001',
-  serviceTitle: 'Google Workspace File Sync Implementation',
-  serviceDescription:
-    'Configuring common drive for enabling shared folder access among 3 laptops. Includes technical review, user requirement gathering, architecture planning, system configuration, and handover walkthrough. One-time fixed fee as per agreed quotation.',
-  items: [
-    {
-      id: 'item-1',
-      description: 'Google Workspace File Sync Implementation',
-      quantity: 1,
-      unitPrice: 30000,
-      amount: 30000,
-    },
-  ],
-  subtotal: 30000,
+  date: new Date().toISOString().split('T')[0],
+  projectName: '',
+  clientName: '',
+  clientCompany: '',
+  clientAttn: '',
+  clientAddress: '',
+  clientPhone: '',
+  clientEmail: '',
+  invoiceNumber: '',
+  refQuotation: '',
+  serviceTitle: '',
+  serviceDescription: '',
+  items: [blankItem()],
+  subtotal: 0,
   discount: 0,
   tax: 0,
   brokerName: '',
   brokerFee: 0,
   outsourceWorkerName: '',
   outsourceWorkerFee: 0,
-  myProfit: 30000,
-  total: 30000,
+  myProfit: 0,
+  total: 0,
   status: 'draft',
   notes: '',
 });
@@ -75,6 +66,15 @@ export const QuickStudioPage: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         const row = Array.isArray(parsed) ? parsed[0] : parsed;
+        // Purge old demo/sample data if previously cached in browser
+        if (
+          row?.projectName === 'Google Workspace File Sync' ||
+          row?.clientCompany === 'InterMax (Pvt) Ltd.' ||
+          row?.invoiceNumber === 'CC-INV-2026-001'
+        ) {
+          localStorage.removeItem(STORAGE_KEY);
+          return defaultProject();
+        }
         if (row && (row.projectName || row.clientCompany || row.invoiceNumber)) {
           return row;
         }
@@ -219,8 +219,15 @@ export const QuickStudioPage: React.FC = () => {
   };
 
   const handleReset = () => {
+    localStorage.removeItem(STORAGE_KEY);
     setProject(defaultProject());
-    toast.info('Invoice reset to default');
+    toast.info('Invoice reset to blank');
+  };
+
+  const handleClearData = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setProject(defaultProject());
+    toast.success('All saved data removed successfully');
   };
 
   const handlePrint = () => {
@@ -267,9 +274,19 @@ export const QuickStudioPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleClearData}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+            title="Remove and clear all saved data"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear Data</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleReset}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition-colors"
-            title="Reset to default"
+            title="Reset to blank template"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset</span>

@@ -89,6 +89,11 @@ export const DashboardPage: React.FC = () => {
           const parsed = JSON.parse(saved);
           const rows = Array.isArray(parsed) ? parsed : [parsed];
           rows.forEach((row: any) => {
+            // Clean up legacy sample project if present in localStorage
+            if (row?.projectName === 'Google Workspace File Sync' && row?.clientCompany === 'InterMax (Pvt) Ltd.') {
+              localStorage.removeItem(STORAGE_KEY);
+              return;
+            }
             if (row && (row.projectName || row.clientCompany || row.invoiceNumber)) {
               if (!isSupabaseConfigured || productsCount === 0) {
                 if (row.projectName) productsCount += 1;

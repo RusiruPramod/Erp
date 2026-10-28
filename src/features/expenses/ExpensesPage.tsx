@@ -72,22 +72,7 @@ export const ExpensesPage: React.FC = () => {
     ],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [
-          {
-            id: 'exp-1',
-            project_id: '00000000-0000-0000-0000-000000000010',
-            expense_date: new Date().toISOString(),
-            type: 'advertisement' as const,
-            platform: 'Facebook' as const,
-            category: null,
-            description: 'Targeted Lead Ad Campaign - IT Support Colombo',
-            amount: 3500,
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            projects: { name: 'Google Workspace File Sync' },
-          },
-        ];
+        return [];
       }
 
       let query = supabase

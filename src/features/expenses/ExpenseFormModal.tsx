@@ -46,9 +46,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     queryKey: ['projects-select'],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [
-          { id: '00000000-0000-0000-0000-000000000010', name: 'Google Workspace File Sync' },
-        ];
+        return [];
       }
       const { data, error } = await supabase
         .from('projects')

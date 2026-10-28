@@ -84,29 +84,7 @@ export const DocumentsListPage: React.FC = () => {
     queryKey: ['documents', searchTerm, typeFilter, statusFilter],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [
-          {
-            id: '1',
-            type: 'invoice' as const,
-            number: 'INV-2026-001',
-            project_id: '00000000-0000-0000-0000-000000000010',
-            customer_id: '00000000-0000-0000-0000-000000000005',
-            status: 'partially_paid' as const,
-            issue_date: '2026-10-15',
-            due_date: '2026-10-29',
-            discount: 0,
-            notes: null,
-            total: 30000,
-            share_token: 'demo-share-token',
-            pdf_path: null,
-            sent_at: '2026-10-15T12:00:00Z',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            customers: { name: 'Shamshard Marikkar', company: 'InterMax (Pvt) Ltd.', phone: '94772078626' },
-            projects: { name: 'Google Workspace File Sync' },
-          },
-        ];
+        return [];
       }
 
       let query = supabase

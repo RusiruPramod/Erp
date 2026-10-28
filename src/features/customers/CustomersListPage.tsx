@@ -36,19 +36,7 @@ export const CustomersListPage: React.FC = () => {
     queryKey: ['customers', searchTerm],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [
-          {
-            id: '00000000-0000-0000-0000-000000000005',
-            name: 'Shamshard Marikkar (Managing Director)',
-            company: 'InterMax (Pvt) Ltd.',
-            phone: '94772078626',
-            email: 'intermaxsrilanka@gmail.com',
-            address: '435/2, Dutugemunu Rd, Koswatte, Battaramulla, Sri Lanka',
-            created_by: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ];
+        return [];
       }
       let query = supabase.from('customers').select('*').order('name', { ascending: true });
       if (searchTerm) {

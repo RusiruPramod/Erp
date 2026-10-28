@@ -50,7 +50,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     queryKey: ['customers-select'],
     queryFn: async () => {
       if (!isSupabaseConfigured) {
-        return [{ id: '00000000-0000-0000-0000-000000000005', name: 'Sample Client', company: 'Sample Co.' }];
+        return [];
       }
       const { data, error } = await supabase
         .from('customers')

@@ -44,27 +44,8 @@ export const ProjectsListPage: React.FC = () => {
     queryFn: async () => {
       if (!isSupabaseConfigured) {
         return {
-          projects: [
-            {
-              id: '00000000-0000-0000-0000-000000000010',
-              name: 'Company Website Redesign',
-              customer_id: '00000000-0000-0000-0000-000000000005',
-              customer_name: 'Shamshard Marikkar',
-              customer_company: 'InterMax (Pvt) Ltd.',
-              project_date: new Date().toISOString(),
-              income: 85000,
-              outsourcer_name: 'Kasun Silva',
-              outsourcer_cost: 40000,
-              broker_name: null,
-              broker_commission: 0,
-              my_profit: 45000,
-              margin_pct: 52.94,
-              status: 'active',
-              total_paid: 50000,
-              balance: 35000,
-            },
-          ],
-          count: 1,
+          projects: [],
+          count: 0,
         };
       }
 
