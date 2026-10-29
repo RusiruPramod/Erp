@@ -363,4 +363,9 @@ export const ExpensesPage: React.FC = () => {
         }}
         title="Delete Expense Record"
         message={`Are you sure you want to delete "${expenseToDelete?.description}"?`}
-        confirmText
+        confirmText="Delete"
+        isDestructive
+      />
+    </div>
+  );
+};

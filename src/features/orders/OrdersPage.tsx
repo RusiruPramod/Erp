@@ -731,4 +731,9 @@ export const OrdersPage: React.FC = () => {
         }}
         title="Delete Customer Order"
         message={`Are you sure you want to delete "${orderToDelete?.order_name}"?`}
-        confi
+        confirmText="Delete"
+        isDestructive
+      />
+    </div>
+  );
+};
