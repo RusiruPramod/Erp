@@ -4,16 +4,25 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { Button } from '../../components/ui/Button';
-import { AdCampaignExpense, AdExpenseCategory } from '../../types';
+import {
+  AdCampaignExpense,
+  AdExpenseCategory,
+  ExpenseAllocationMethod,
+  AdCampaign,
+  AdCampaignOrder,
+} from '../../types';
 import { formatLKR, formatDateInput } from '../../lib/formatters';
 
 interface CampaignExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  campaignId: string;
+  campaignId?: string | null;
+  campaigns?: AdCampaign[];
+  orders?: AdCampaignOrder[];
   expenseToEdit?: AdCampaignExpense | null;
   onSave: (expenseData: {
-    campaign_id: string;
+    campaign_id: string | null;
+    order_id?: string | null;
     category: AdExpenseCategory;
     description: string;
     expense_date: string;
@@ -21,6 +30,7 @@ interface CampaignExpenseModalProps {
     currency: 'LKR' | 'USD';
     exchange_rate: number;
     amount_lkr: number;
+    allocation_method?: ExpenseAllocationMethod;
     notes?: string | null;
   }) => Promise<void>;
 }
@@ -28,42 +38,53 @@ interface CampaignExpenseModalProps {
 export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
   isOpen,
   onClose,
-  campaignId,
+  campaignId = null,
+  campaigns = [],
+  orders = [],
   expenseToEdit,
   onSave,
 }) => {
   const isEditing = Boolean(expenseToEdit);
 
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(campaignId || 'no_campaign');
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('no_order');
   const [category, setCategory] = useState<AdExpenseCategory>('Packaging');
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(formatDateInput(new Date()));
   const [amount, setAmount] = useState<number | ''>('');
   const [currency, setCurrency] = useState<'LKR' | 'USD'>('LKR');
   const [exchangeRate, setExchangeRate] = useState<number | ''>(305);
+  const [allocationMethod, setAllocationMethod] = useState<ExpenseAllocationMethod>('revenue_based');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (expenseToEdit) {
+      setSelectedCampaignId(expenseToEdit.campaign_id || 'no_campaign');
+      setSelectedOrderId(expenseToEdit.order_id || 'no_order');
       setCategory(expenseToEdit.category);
       setDescription(expenseToEdit.description);
       setExpenseDate(formatDateInput(expenseToEdit.expense_date));
       setAmount(expenseToEdit.amount);
       setCurrency(expenseToEdit.currency);
       setExchangeRate(expenseToEdit.exchange_rate || 305);
+      setAllocationMethod(expenseToEdit.allocation_method || 'revenue_based');
       setNotes(expenseToEdit.notes || '');
     } else {
+      setSelectedCampaignId(campaignId || 'no_campaign');
+      setSelectedOrderId('no_order');
       setCategory('Packaging');
       setDescription('');
       setExpenseDate(formatDateInput(new Date()));
       setAmount('');
       setCurrency('LKR');
       setExchangeRate(305);
+      setAllocationMethod('revenue_based');
       setNotes('');
     }
     setErrors({});
-  }, [expenseToEdit, isOpen]);
+  }, [expenseToEdit, campaignId, isOpen]);
 
   const numAmount = Number(amount) || 0;
   const numRate = Number(exchangeRate) || 305;
@@ -88,7 +109,8 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
-        campaign_id: campaignId,
+        campaign_id: selectedCampaignId === 'no_campaign' ? null : selectedCampaignId,
+        order_id: selectedOrderId === 'no_order' ? null : selectedOrderId,
         category,
         description: description.trim(),
         expense_date: expenseDate,
@@ -96,6 +118,7 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
         currency,
         exchange_rate: numRate,
         amount_lkr: calculatedLkr,
+        allocation_method: allocationMethod,
         notes: notes.trim() || null,
       });
       onClose();
@@ -110,8 +133,8 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Edit Campaign Expense' : 'Add Campaign Operational Expense'}
-      description="Record operational costs like packaging, delivery courier fees, or extra material purchases."
+      title={isEditing ? 'Edit Expense Record' : 'Record Business / Campaign Expense'}
+      description="Record packaging, delivery courier fees, material purchases, reloads, or operational expenses."
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -122,9 +145,11 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
             value={category}
             onChange={e => setCategory(e.target.value as AdExpenseCategory)}
             options={[
-              { value: 'Packaging', label: 'Packaging (Boxes, bubble wrap, labels)' },
+              { value: 'Packaging', label: 'Packaging (Boxes, bubble wrap)' },
               { value: 'Delivery', label: 'Delivery & Courier Fees' },
               { value: 'Material purchases', label: 'Material Purchases' },
+              { value: 'Reload / Internet Expenses', label: 'Reload / Internet Expenses' },
+              { value: 'Additional Outsourcing', label: 'Additional Outsourcing' },
               { value: 'Operational', label: 'Operational Expenses' },
               { value: 'Other', label: 'Other' },
             ]}
@@ -138,15 +163,63 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
           />
         </div>
 
+        {/* Association: Campaign & Order */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Related Campaign (Optional)"
+            value={selectedCampaignId}
+            onChange={e => setSelectedCampaignId(e.target.value)}
+            options={[
+              { value: 'no_campaign', label: 'General / No Campaign' },
+              ...campaigns.map(c => ({
+                value: c.id,
+                label: `${c.campaign_code} - ${c.name}`,
+              })),
+            ]}
+          />
+
+          <Select
+            label="Related Order / Project (Optional)"
+            value={selectedOrderId}
+            onChange={e => setSelectedOrderId(e.target.value)}
+            options={[
+              { value: 'no_order', label: 'No Specific Order' },
+              ...orders.map(o => ({
+                value: o.id,
+                label: `${o.order_number} - ${o.order_name}`,
+              })),
+            ]}
+          />
+        </div>
+
         {/* Description */}
         <Input
-          label="Description *"
-          placeholder="e.g. Courier delivery fee for Smart Dispenser PCB batch"
+          label="Description / Purpose *"
+          placeholder="e.g. Courier delivery fee or Reload card for customer communications"
           value={description}
           onChange={e => setDescription(e.target.value)}
           error={errors.description}
           autoFocus
         />
+
+        {/* Allocation Method for shared expenses */}
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2.5">
+          <label className="text-xs font-semibold text-neutral-700 block mb-1">
+            Expense Allocation Method (for shared expenses)
+          </label>
+          <select
+            className="w-full text-xs rounded-lg border border-neutral-200 p-2 bg-white text-neutral-800"
+            value={allocationMethod}
+            onChange={e => setAllocationMethod(e.target.value as ExpenseAllocationMethod)}
+          >
+            <option value="revenue_based">Revenue-Based Allocation (Proportional to order value)</option>
+            <option value="equal">Equal Allocation (Split equally among eligible orders)</option>
+            <option value="manual">Manual Allocation (Assigned directly)</option>
+          </select>
+          <p className="text-[10px] text-neutral-400 mt-1">
+            If assigned to multiple orders, allocation is distributed without double-counting.
+          </p>
+        </div>
 
         {/* Amount & Currency */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -215,4 +288,3 @@ export const CampaignExpenseModal: React.FC<CampaignExpenseModalProps> = ({
     </Modal>
   );
 };
-

@@ -8,6 +8,9 @@ import {
   AdCampaignOrder,
   AdOrderService,
   OrderStatus,
+  CustomerPaymentStatus,
+  SupplierPaymentStatus,
+  LeadSource,
   SupplierType,
   AdCampaign,
 } from '../../types';
@@ -27,7 +30,13 @@ interface OrderModalProps {
       customer_phone?: string | null;
       order_date: string;
       campaign_id: string | null;
+      lead_source?: LeadSource;
       status: OrderStatus;
+      payment_status?: CustomerPaymentStatus;
+      customer_paid_amount?: number;
+      supplier_payment_status?: SupplierPaymentStatus;
+      supplier_paid_amount?: number;
+      manual_allocated_ad_spend?: number | null;
       notes?: string | null;
     },
     services: Array<Omit<AdOrderService, 'id' | 'order_id'>>
@@ -42,6 +51,9 @@ interface EditableService {
   markup: number | '';
   client_price: number | '';
   is_financial_pending: boolean;
+  supplier_payment_status?: SupplierPaymentStatus;
+  customer_payment_status?: CustomerPaymentStatus;
+  service_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   notes: string;
 }
 
@@ -60,7 +72,16 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [customerPhone, setCustomerPhone] = useState('');
   const [orderDate, setOrderDate] = useState(formatDateInput(new Date()));
   const [campaignId, setCampaignId] = useState<string>('no_campaign');
+  const [leadSource, setLeadSource] = useState<LeadSource>('Facebook Campaign');
   const [status, setStatus] = useState<OrderStatus>('confirmed');
+
+  // Payment Tracking Fields
+  const [paymentStatus, setPaymentStatus] = useState<CustomerPaymentStatus>('unpaid');
+  const [customerPaidAmount, setCustomerPaidAmount] = useState<number | ''>(0);
+  const [supplierPaymentStatus, setSupplierPaymentStatus] = useState<SupplierPaymentStatus>('unpaid');
+  const [supplierPaidAmount, setSupplierPaidAmount] = useState<number | ''>(0);
+  const [manualAllocatedAdSpend, setManualAllocatedAdSpend] = useState<number | ''>('');
+
   const [notes, setNotes] = useState('');
   const [services, setServices] = useState<EditableService[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +94,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       setCustomerPhone(orderToEdit.customer_phone || '');
       setOrderDate(formatDateInput(orderToEdit.order_date));
       setCampaignId(orderToEdit.campaign_id || 'no_campaign');
+      setLeadSource(orderToEdit.lead_source || 'Facebook Campaign');
       setStatus(orderToEdit.status || 'confirmed');
+      setPaymentStatus(orderToEdit.payment_status || 'unpaid');
+      setCustomerPaidAmount(orderToEdit.customer_paid_amount ?? 0);
+      setSupplierPaymentStatus(orderToEdit.supplier_payment_status || 'unpaid');
+      setSupplierPaidAmount(orderToEdit.supplier_paid_amount ?? 0);
+      setManualAllocatedAdSpend(orderToEdit.manual_allocated_ad_spend ?? '');
       setNotes(orderToEdit.notes || '');
 
       if (orderToEdit.services && orderToEdit.services.length > 0) {
@@ -86,6 +113,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             markup: s.markup ?? '',
             client_price: s.client_price ?? '',
             is_financial_pending: Boolean(s.is_financial_pending),
+            supplier_payment_status: s.supplier_payment_status || 'unpaid',
+            customer_payment_status: s.customer_payment_status || 'unpaid',
+            service_status: s.service_status || 'pending',
             notes: s.notes || '',
           }))
         );
@@ -99,6 +129,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             markup: '',
             client_price: '',
             is_financial_pending: false,
+            supplier_payment_status: 'unpaid',
+            customer_payment_status: 'unpaid',
+            service_status: 'pending',
             notes: '',
           },
         ]);
@@ -109,7 +142,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       setCustomerPhone('');
       setOrderDate(formatDateInput(new Date()));
       setCampaignId(defaultCampaignId || 'no_campaign');
+      setLeadSource(defaultCampaignId && defaultCampaignId !== 'no_campaign' ? 'Facebook Campaign' : 'Direct Message');
       setStatus('confirmed');
+      setPaymentStatus('unpaid');
+      setCustomerPaidAmount(0);
+      setSupplierPaymentStatus('unpaid');
+      setSupplierPaidAmount(0);
+      setManualAllocatedAdSpend('');
       setNotes('');
       setServices([
         {
@@ -120,16 +159,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           markup: 4000,
           client_price: 8000,
           is_financial_pending: false,
-          notes: '',
-        },
-        {
-          id: `temp-${Date.now()}-2`,
-          service_name: 'PCB Printing',
-          supplier_type: 'outsourced',
-          supplier_cost: 2000,
-          markup: 1000,
-          client_price: 3000,
-          is_financial_pending: false,
+          supplier_payment_status: 'unpaid',
+          customer_payment_status: 'unpaid',
+          service_status: 'pending',
           notes: '',
         },
       ]);
@@ -148,6 +180,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
         markup: '',
         client_price: '',
         is_financial_pending: false,
+        supplier_payment_status: 'unpaid',
+        customer_payment_status: 'unpaid',
+        service_status: 'pending',
         notes: '',
       },
     ]);
@@ -192,13 +227,18 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   });
 
   const grossProfit = totalRevenue - totalSupplierCosts;
+  const custPaid = Number(customerPaidAmount) || (paymentStatus === 'fully_paid' ? totalRevenue : 0);
+  const suppPaid = Number(supplierPaidAmount) || (supplierPaymentStatus === 'fully_paid' ? totalSupplierCosts : 0);
+
+  const customerRemainingBalance = Math.max(0, totalRevenue - custPaid);
+  const supplierRemainingBalance = Math.max(0, totalSupplierCosts - suppPaid);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { [key: string]: string } = {};
 
     if (!orderName.trim()) {
-      newErrors.orderName = 'Order name is required';
+      newErrors.orderName = 'Order / Project name is required';
     }
     if (!orderDate) {
       newErrors.orderDate = 'Order date is required';
@@ -227,6 +267,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
         markup: s.is_financial_pending || s.markup === '' ? null : Number(s.markup),
         client_price: s.is_financial_pending || s.client_price === '' ? null : Number(s.client_price),
         is_financial_pending: s.is_financial_pending || s.supplier_cost === '' || s.client_price === '',
+        supplier_payment_status: s.supplier_payment_status || 'unpaid',
+        customer_payment_status: s.customer_payment_status || 'unpaid',
+        service_status: s.service_status || 'pending',
         notes: s.notes.trim() || null,
       }));
 
@@ -237,7 +280,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           customer_phone: customerPhone.trim() || null,
           order_date: orderDate,
           campaign_id: campaignId === 'no_campaign' ? null : campaignId,
+          lead_source: leadSource,
           status,
+          payment_status: paymentStatus,
+          customer_paid_amount: custPaid,
+          supplier_payment_status: supplierPaymentStatus,
+          supplier_paid_amount: suppPaid,
+          manual_allocated_ad_spend: manualAllocatedAdSpend === '' ? null : Number(manualAllocatedAdSpend),
           notes: notes.trim() || null,
         },
         formattedServices
@@ -254,15 +303,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Edit Customer Order' : 'Record New Order / Inquiry'}
-      description="Record customer orders received during campaigns or manual direct orders from friends and clients."
+      title={isEditing ? 'Edit Customer Order' : 'Record New Customer Order'}
+      description="Record customer orders with multi-service cost breakdown, profit margin, and payment tracking."
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Order Name & Campaign Association */}
+        {/* Project Name & Campaign Association */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Order Name / Project Title *"
+            label="Project Name / Order Title *"
             placeholder="e.g. Smart Dispensing Drug Timer Medicine"
             value={orderName}
             onChange={e => setOrderName(e.target.value)}
@@ -271,9 +320,14 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           />
 
           <Select
-            label="Associated Ad Campaign"
+            label="Associated Ad Campaign (Optional)"
             value={campaignId}
-            onChange={e => setCampaignId(e.target.value)}
+            onChange={e => {
+              setCampaignId(e.target.value);
+              if (e.target.value !== 'no_campaign') {
+                setLeadSource('Facebook Campaign');
+              }
+            }}
             options={[
               { value: 'no_campaign', label: 'No Campaign (Direct / Word-of-Mouth)' },
               ...campaigns.map(c => ({
@@ -284,51 +338,146 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           />
         </div>
 
-        {/* Customer Info & Date */}
+        {/* Customer Info, Contact & Lead Source */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
-            label="Customer Name (Optional)"
+            label="Customer Name"
             placeholder="e.g. Dr. K. Perera"
             value={customerName}
             onChange={e => setCustomerName(e.target.value)}
           />
 
           <Input
-            label="Customer Phone (Optional)"
+            label="Customer Phone / Contact"
             placeholder="e.g. 0771234567"
             value={customerPhone}
             onChange={e => setCustomerPhone(e.target.value)}
           />
 
-          <Input
-            type="date"
-            label="Order Date *"
-            value={orderDate}
-            onChange={e => setOrderDate(e.target.value)}
-            error={errors.orderDate}
+          <Select
+            label="Lead Source"
+            value={leadSource}
+            onChange={e => setLeadSource(e.target.value as LeadSource)}
+            options={[
+              { value: 'Facebook Campaign', label: 'Facebook Campaign' },
+              { value: 'Direct Message', label: 'Direct Message / WhatsApp' },
+              { value: 'Friend / Referral', label: 'Friend / Referral' },
+              { value: 'Existing Customer', label: 'Existing Customer' },
+              { value: 'Manual Entry', label: 'Manual Entry' },
+              { value: 'Other', label: 'Other Source' },
+            ]}
           />
         </div>
 
-        {/* Order Status */}
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <label className="text-xs font-bold text-neutral-800">Order Status</label>
-              <p className="text-[11px] text-neutral-500">
-                Pending inquiries and cancelled orders do not inflate confirmed revenue.
-              </p>
-            </div>
-            <div className="w-full sm:w-56">
+        {/* Date & Order Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            type="date"
+            label="Order Received Date *"
+            value={orderDate}
+            onChange={e => setOrderDate(e.target.value)}
+            error={errors.orderDate}
+            helperText="Custom or historical date supported"
+          />
+
+          <Select
+            label="Order Status"
+            value={status}
+            onChange={e => setStatus(e.target.value as OrderStatus)}
+            options={[
+              { value: 'new', label: 'New Inquiry' },
+              { value: 'quotation_pending', label: 'Quotation Pending (Awaiting Costs)' },
+              { value: 'confirmed', label: 'Confirmed (Quote Accepted)' },
+              { value: 'in_progress', label: 'In Progress (Active Work)' },
+              { value: 'waiting_for_supplier', label: 'Waiting for Supplier / PCB Print' },
+              { value: 'quality_check', label: 'Quality Check' },
+              { value: 'ready_for_delivery', label: 'Ready for Delivery' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'cancelled', label: 'Cancelled' },
+            ]}
+          />
+        </div>
+
+        {/* Payment Tracking Section */}
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+              Payment & Balance Tracking
+            </span>
+            <span className="text-[11px] text-neutral-500">
+              Track customer receipts and supplier payments separately
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Customer Payment */}
+            <div className="bg-white p-3 rounded-lg border border-neutral-200 space-y-2">
+              <span className="text-[11px] font-bold text-neutral-700 uppercase block">
+                Customer Payment Status
+              </span>
               <Select
-                value={status}
-                onChange={e => setStatus(e.target.value as OrderStatus)}
+                value={paymentStatus}
+                onChange={e => {
+                  const val = e.target.value as CustomerPaymentStatus;
+                  setPaymentStatus(val);
+                  if (val === 'fully_paid') {
+                    setCustomerPaidAmount(totalRevenue);
+                  } else if (val === 'unpaid' || val === 'not_invoiced') {
+                    setCustomerPaidAmount(0);
+                  }
+                }}
                 options={[
-                  { value: 'pending', label: '⏳ Pending Confirmation (Inquiry)' },
-                  { value: 'confirmed', label: '✓ Confirmed (Ready to Bill)' },
-                  { value: 'in_progress', label: '⚡ In Progress' },
-                  { value: 'completed', label: '🎉 Completed' },
-                  { value: 'cancelled', label: '✕ Cancelled' },
+                  { value: 'not_invoiced', label: 'Not Invoiced' },
+                  { value: 'unpaid', label: 'Unpaid (0 Received)' },
+                  { value: 'partially_paid', label: 'Partially Paid (Advance/Deposit)' },
+                  { value: 'fully_paid', label: 'Fully Paid (Completed)' },
+                  { value: 'refunded', label: 'Refunded' },
                 ]}
+              />
+
+              <Input
+                type="number"
+                step="100"
+                min="0"
+                label="Customer Amount Received (LKR)"
+                value={customerPaidAmount}
+                onChange={e => setCustomerPaidAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                helperText={`Remaining Balance: ${formatLKR(customerRemainingBalance)}`}
+              />
+            </div>
+
+            {/* Supplier Payment */}
+            <div className="bg-white p-3 rounded-lg border border-neutral-200 space-y-2">
+              <span className="text-[11px] font-bold text-neutral-700 uppercase block">
+                Supplier Cost Payment Status
+              </span>
+              <Select
+                value={supplierPaymentStatus}
+                onChange={e => {
+                  const val = e.target.value as SupplierPaymentStatus;
+                  setSupplierPaymentStatus(val);
+                  if (val === 'fully_paid') {
+                    setSupplierPaidAmount(totalSupplierCosts);
+                  } else if (val === 'unpaid' || val === 'pending_cost_confirmation') {
+                    setSupplierPaidAmount(0);
+                  }
+                }}
+                options={[
+                  { value: 'pending_cost_confirmation', label: 'Pending Cost Confirmation' },
+                  { value: 'unpaid', label: 'Unpaid to Supplier' },
+                  { value: 'partially_paid', label: 'Partially Paid (Deposit Paid)' },
+                  { value: 'fully_paid', label: 'Fully Paid to Supplier' },
+                ]}
+              />
+
+              <Input
+                type="number"
+                step="100"
+                min="0"
+                label="Supplier Amount Paid (LKR)"
+                value={supplierPaidAmount}
+                onChange={e => setSupplierPaidAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                helperText={`Remaining Payable: ${formatLKR(supplierRemainingBalance)}`}
               />
             </div>
           </div>
@@ -339,10 +488,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-                Service Items & Financial Pricing
+                Service Line Items & Cost Breakdown
               </h4>
               <p className="text-[11px] text-neutral-500">
-                Client Price = Supplier Cost + My Profit / Markup
+                Customer Price = Supplier Cost + My Profit / Margin
               </p>
             </div>
             <Button
@@ -352,7 +501,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
               leftIcon={<Plus className="w-3.5 h-3.5" />}
               onClick={handleAddService}
             >
-              Add Service
+              + Add Service
             </Button>
           </div>
 
@@ -361,155 +510,176 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           )}
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {services.map((service, index) => (
-              <div
-                key={service.id}
-                className={`rounded-xl border p-3 transition-colors ${
-                  service.is_financial_pending
-                    ? 'border-amber-200 bg-amber-50/30'
-                    : 'border-neutral-200 bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-neutral-400">#{index + 1}</span>
-                    <input
-                      type="text"
-                      className="text-xs font-semibold text-neutral-900 border-b border-neutral-300 focus:border-[#FF8C00] outline-none px-1 py-0.5 w-44 sm:w-56"
-                      placeholder="Service name (e.g. PCB Design)"
-                      value={service.service_name}
-                      onChange={e => handleServiceChange(index, 'service_name', e.target.value)}
-                    />
-                  </div>
+            {services.map((service, index) => {
+              const expectedClientPrice =
+                (Number(service.supplier_cost) || 0) + (Number(service.markup) || 0);
+              const hasMismatch =
+                !service.is_financial_pending &&
+                service.client_price !== '' &&
+                service.supplier_cost !== '' &&
+                Math.abs(Number(service.client_price) - expectedClientPrice) > 0.01;
 
-                  <div className="flex items-center gap-2">
-                    {/* Financial Pending Toggle */}
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 select-none">
+              return (
+                <div
+                  key={service.id}
+                  className={`rounded-xl border p-3 transition-colors ${
+                    service.is_financial_pending
+                      ? 'border-amber-200 bg-amber-50/30'
+                      : 'border-neutral-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-neutral-400">#{index + 1}</span>
                       <input
-                        type="checkbox"
-                        checked={service.is_financial_pending}
-                        onChange={e => handleServiceChange(index, 'is_financial_pending', e.target.checked)}
-                        className="rounded border-neutral-300 text-[#FF8C00] focus:ring-[#FF8C00]"
+                        type="text"
+                        className="text-xs font-semibold text-neutral-900 border-b border-neutral-300 focus:border-[#FF8C00] outline-none px-1 py-0.5 w-44 sm:w-56"
+                        placeholder="Service name (e.g. PCB Design)"
+                        value={service.service_name}
+                        onChange={e => handleServiceChange(index, 'service_name', e.target.value)}
                       />
-                      <span>Cost Pending</span>
-                    </label>
+                    </div>
 
-                    {services.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveService(index)}
-                        className="text-neutral-400 hover:text-red-600 p-1 rounded transition-colors"
+                    <div className="flex items-center gap-2">
+                      {/* Financial Pending Toggle */}
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 select-none">
+                        <input
+                          type="checkbox"
+                          checked={service.is_financial_pending}
+                          onChange={e => handleServiceChange(index, 'is_financial_pending', e.target.checked)}
+                          className="rounded border-neutral-300 text-[#FF8C00] focus:ring-[#FF8C00]"
+                        />
+                        <span className="font-semibold text-amber-700">Cost Pending</span>
+                      </label>
+
+                      {services.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveService(index)}
+                          className="text-neutral-400 hover:text-red-600 p-1 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    <div>
+                      <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
+                        Supplier Type
+                      </label>
+                      <select
+                        className="text-xs w-full rounded border border-neutral-200 p-1.5 bg-white text-neutral-800"
+                        value={service.supplier_type}
+                        onChange={e => handleServiceChange(index, 'supplier_type', e.target.value as SupplierType)}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                        <option value="outsourced">Outsourced</option>
+                        <option value="in_house">In-house (Direct)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
+                        Supplier Cost (LKR)
+                      </label>
+                      <input
+                        type="number"
+                        step="100"
+                        min="0"
+                        placeholder={service.is_financial_pending ? 'Pending' : '0.00'}
+                        disabled={service.is_financial_pending}
+                        className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono disabled:bg-neutral-100 disabled:text-neutral-400"
+                        value={service.is_financial_pending ? '' : service.supplier_cost}
+                        onChange={e => handleServiceChange(index, 'supplier_cost', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
+                        My Margin (LKR)
+                      </label>
+                      <input
+                        type="number"
+                        step="100"
+                        min="0"
+                        placeholder={service.is_financial_pending ? 'Pending' : '0.00'}
+                        disabled={service.is_financial_pending}
+                        className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono disabled:bg-neutral-100 disabled:text-neutral-400"
+                        value={service.is_financial_pending ? '' : service.markup}
+                        onChange={e => handleServiceChange(index, 'markup', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
+                        Customer Price (LKR)
+                      </label>
+                      <input
+                        type="number"
+                        step="100"
+                        min="0"
+                        placeholder={service.is_financial_pending ? 'Pending' : '0.00'}
+                        disabled={service.is_financial_pending}
+                        className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono font-bold text-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-400"
+                        value={service.is_financial_pending ? '' : service.client_price}
+                        onChange={e => handleServiceChange(index, 'client_price', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      />
+                    </div>
                   </div>
+
+                  {hasMismatch && (
+                    <div className="mt-2 text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded flex items-center gap-1 border border-amber-200">
+                      <AlertTriangle className="w-3 h-3 text-amber-600" />
+                      <span>
+                        Manual override detected: Customer Price ({formatLKR(Number(service.client_price))}) differs from Cost + Margin ({formatLKR(expectedClientPrice)}).
+                      </span>
+                    </div>
+                  )}
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  <div>
-                    <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
-                      Supplier Type
-                    </label>
-                    <select
-                      className="text-xs w-full rounded border border-neutral-200 p-1.5 bg-white text-neutral-800"
-                      value={service.supplier_type}
-                      onChange={e => handleServiceChange(index, 'supplier_type', e.target.value as SupplierType)}
-                    >
-                      <option value="outsourced">Outsourced</option>
-                      <option value="in_house">In-house (Direct)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
-                      Supplier Cost (LKR)
-                    </label>
-                    <input
-                      type="number"
-                      step="100"
-                      min="0"
-                      placeholder={service.is_financial_pending ? 'Pending' : '0.00'}
-                      disabled={service.is_financial_pending}
-                      className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono disabled:bg-neutral-100 disabled:text-neutral-400"
-                      value={service.is_financial_pending ? '' : service.supplier_cost}
-                      onChange={e => handleServiceChange(index, 'supplier_cost', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
-                      My Markup (LKR)
-                    </label>
-                    <input
-                      type="number"
-                      step="100"
-                      min="0"
-                      placeholder={service.is_financial_pending ? 'Not decided' : '0.00'}
-                      disabled={service.is_financial_pending}
-                      className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono disabled:bg-neutral-100 disabled:text-neutral-400"
-                      value={service.is_financial_pending ? '' : service.markup}
-                      onChange={e => handleServiceChange(index, 'markup', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-neutral-500 uppercase block mb-1">
-                      Client Price (LKR)
-                    </label>
-                    <input
-                      type="number"
-                      step="100"
-                      min="0"
-                      placeholder={service.is_financial_pending ? 'Not decided' : '0.00'}
-                      disabled={service.is_financial_pending}
-                      className="text-xs w-full rounded border border-neutral-200 p-1.5 font-mono font-bold text-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-400"
-                      value={service.is_financial_pending ? '' : service.client_price}
-                      onChange={e => handleServiceChange(index, 'client_price', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Live Order Summary Box */}
-        <div className="rounded-xl border border-neutral-200 bg-neutral-900 text-white p-4">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 text-white p-4">
           <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
             <span>Order Financial Summary</span>
             {hasIncomplete ? (
               <span className="text-amber-400 font-medium flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Incomplete Pricing Excluded
-              </span>
-            ) : status === 'pending' ? (
-              <span className="text-blue-400 font-medium flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" /> Pending Inquiry
+                <AlertTriangle className="w-3.5 h-3.5" /> Pending Quotations Excluded from Totals
               </span>
             ) : (
               <span className="text-emerald-400 font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Confirmed
+                <CheckCircle2 className="w-3.5 h-3.5" /> Fully Confirmed Pricing
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 text-center border-t border-neutral-800 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center border-t border-neutral-800 pt-2">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Total Revenue</p>
-              <p className="text-sm sm:text-base font-bold font-mono text-white">
+              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Total Customer Price</p>
+              <p className="text-base font-bold font-mono text-white">
                 {formatLKR(totalRevenue)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Supplier Costs</p>
-              <p className="text-sm sm:text-base font-bold font-mono text-neutral-300">
+              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Total Supplier Cost</p>
+              <p className="text-base font-bold font-mono text-neutral-300">
                 {formatLKR(totalSupplierCosts)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Gross Profit</p>
-              <p className="text-sm sm:text-base font-bold font-mono text-[#FF8C00]">
+              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Expected Gross Profit</p>
+              <p className="text-base font-bold font-mono text-[#FF8C00]">
                 {formatLKR(grossProfit)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-neutral-400">Customer Balance</p>
+              <p className="text-base font-bold font-mono text-rose-400">
+                {formatLKR(customerRemainingBalance)}
               </p>
             </div>
           </div>
@@ -537,4 +707,3 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     </Modal>
   );
 };
-

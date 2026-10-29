@@ -56,10 +56,59 @@ export interface DocumentWithDetails extends Document {
 // AD CAMPAIGN LEDGER & PROFIT TRACKER MODULE TYPES
 // ============================================================================
 
-export type CampaignStatus = 'running' | 'review' | 'closed';
-export type OrderStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+export type CampaignStatus =
+  | 'planned'
+  | 'running'
+  | 'waiting_for_orders'
+  | 'review'
+  | 'closed'
+  | 'archived';
+
+export type OrderStatus =
+  | 'new'
+  | 'quotation_pending'
+  | 'pending'
+  | 'confirmed'
+  | 'in_progress'
+  | 'waiting_for_supplier'
+  | 'quality_check'
+  | 'ready_for_delivery'
+  | 'completed'
+  | 'cancelled';
+
+export type CustomerPaymentStatus =
+  | 'not_invoiced'
+  | 'unpaid'
+  | 'partially_paid'
+  | 'fully_paid'
+  | 'refunded';
+
+export type SupplierPaymentStatus =
+  | 'pending_cost_confirmation'
+  | 'unpaid'
+  | 'partially_paid'
+  | 'fully_paid';
+
+export type LeadSource =
+  | 'Facebook Campaign'
+  | 'Direct Message'
+  | 'Friend / Referral'
+  | 'Existing Customer'
+  | 'Manual Entry'
+  | 'Other';
+
 export type SupplierType = 'in_house' | 'outsourced';
-export type AdExpenseCategory = 'Packaging' | 'Delivery' | 'Material purchases' | 'Operational' | 'Other';
+
+export type AdExpenseCategory =
+  | 'Packaging'
+  | 'Delivery'
+  | 'Material purchases'
+  | 'Reload / Internet Expenses'
+  | 'Additional Outsourcing'
+  | 'Operational'
+  | 'Other';
+
+export type ExpenseAllocationMethod = 'equal' | 'revenue_based' | 'manual';
 
 export interface AdOrderService {
   id: string;
@@ -71,6 +120,9 @@ export interface AdOrderService {
   markup: number | null;
   client_price: number | null;
   is_financial_pending: boolean;
+  supplier_payment_status?: SupplierPaymentStatus;
+  customer_payment_status?: CustomerPaymentStatus;
+  service_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   notes?: string | null;
 }
 
@@ -82,7 +134,13 @@ export interface AdCampaignOrder {
   customer_name: string | null;
   customer_phone: string | null;
   order_date: string;
+  lead_source?: LeadSource;
   status: OrderStatus;
+  payment_status?: CustomerPaymentStatus;
+  customer_paid_amount?: number;
+  supplier_payment_status?: SupplierPaymentStatus;
+  supplier_paid_amount?: number;
+  manual_allocated_ad_spend?: number | null;
   notes: string | null;
   services: AdOrderService[];
   created_at: string;
@@ -91,7 +149,8 @@ export interface AdCampaignOrder {
 
 export interface AdCampaignExpense {
   id: string;
-  campaign_id: string;
+  campaign_id: string | null;
+  order_id?: string | null;
   category: AdExpenseCategory;
   description: string;
   expense_date: string;
@@ -99,9 +158,24 @@ export interface AdCampaignExpense {
   currency: 'LKR' | 'USD';
   exchange_rate: number;
   amount_lkr: number;
+  allocation_method?: ExpenseAllocationMethod;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface HistoricalAdSpendEntry {
+  id: string;
+  date: string;
+  amount_usd: number;
+  amount_lkr: number;
+  note?: string;
+}
+
+export interface AdCampaignAuditEntry {
+  timestamp: string;
+  action: string;
+  details: string;
 }
 
 export interface AdCampaign {
@@ -109,13 +183,18 @@ export interface AdCampaign {
   campaign_code: string;
   name: string;
   fb_campaign_ref: string | null;
+  platform?: 'Facebook' | 'Other' | string;
   start_date: string;
   end_date: string | null;
   status: CampaignStatus;
+  currency?: 'USD' | 'LKR';
   ad_spend_usd: number;
   exchange_rate: number;
   ad_spend_lkr: number;
+  allocation_method?: ExpenseAllocationMethod;
   notes: string | null;
+  audit_trail?: AdCampaignAuditEntry[];
+  historical_entries?: HistoricalAdSpendEntry[];
   created_at: string;
   updated_at: string;
 }
@@ -126,6 +205,11 @@ export interface OrderFinancialSummary {
   gross_profit: number;
   allocated_ad_spend: number;
   net_contribution: number;
+  customer_paid_amount: number;
+  customer_balance: number;
+  supplier_paid_amount: number;
+  supplier_balance: number;
+  realized_profit: number;
   has_incomplete_financials: boolean;
   is_confirmed: boolean;
 }
@@ -137,10 +221,17 @@ export interface CampaignFinancialSummary {
   total_revenue: number;
   total_supplier_costs: number;
   gross_profit: number;
+  realized_gross_profit: number;
   ad_spend_usd: number;
   ad_spend_lkr: number;
   other_expenses_lkr: number;
+  total_allocated_ad_spend: number;
+  unallocated_ad_spend: number;
   net_profit: number;
+  pending_order_value: number;
+  pending_supplier_cost: number;
+  outstanding_customer_payments: number;
+  outstanding_supplier_payables: number;
   has_incomplete_financials: boolean;
 }
 
@@ -150,6 +241,10 @@ export interface LedgerOverallMetrics {
   total_confirmed_revenue: number;
   total_supplier_costs: number;
   gross_profit: number;
+  total_expected_profit: number;
+  total_realized_profit: number;
+  pending_customer_payments: number;
+  pending_supplier_costs: number;
   other_expenses_lkr: number;
   net_profit: number;
   total_campaigns_count: number;

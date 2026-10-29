@@ -1,22 +1,17 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Megaphone,
-  ShoppingBag,
-  FileText,
-} from 'lucide-react';
+import { LayoutDashboard, Megaphone, ShoppingBag, Receipt } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
   const items = [
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-    { label: 'Campaigns', to: '/campaigns', icon: Megaphone },
     { label: 'Orders', to: '/orders', icon: ShoppingBag },
-    { label: 'Create Invoice', to: '/invoice', icon: FileText },
+    { label: 'Campaigns', to: '/campaigns', icon: Megaphone },
+    { label: 'Expenses', to: '/expenses', icon: Receipt },
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border px-2 py-1 shadow-lg">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-200 px-2 py-1 shadow-lg">
       <div className="flex items-center justify-around">
         {items.map(item => {
           const Icon = item.icon;

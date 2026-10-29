@@ -6,22 +6,31 @@ import {
   AdOrderService,
   CampaignStatus,
   OrderStatus,
+  HistoricalAdSpendEntry,
 } from '../types';
 
-const STORAGE_KEY_CAMPAIGNS = 'codecrew_ad_campaigns_v5';
-const STORAGE_KEY_ORDERS = 'codecrew_ad_orders_v5';
-const STORAGE_KEY_EXPENSES = 'codecrew_ad_expenses_v5';
+const STORAGE_KEY_CAMPAIGNS = 'codecrew_ad_campaigns_v6';
+const STORAGE_KEY_ORDERS = 'codecrew_ad_orders_v6';
+const STORAGE_KEY_EXPENSES = 'codecrew_ad_expenses_v6';
 
 // Purge obsolete legacy mock data caches so browser displays only user's exact data
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
-    ['v1', 'v2', 'v3', 'v4'].forEach(v => {
+    ['v1', 'v2', 'v3', 'v4', 'v5'].forEach(v => {
       localStorage.removeItem(`codecrew_ad_campaigns_${v}`);
       localStorage.removeItem(`codecrew_ad_orders_${v}`);
       localStorage.removeItem(`codecrew_ad_expenses_${v}`);
     });
   } catch (_) {}
 }
+
+export const INITIAL_HISTORICAL_ENTRIES: HistoricalAdSpendEntry[] = [
+  { id: 'hist-1', date: '2026-09-02', amount_usd: 3.45, amount_lkr: 1052.25, note: 'Facebook Ad - PCB Design Prototype campaign' },
+  { id: 'hist-2', date: '2026-09-08', amount_usd: 4.46, amount_lkr: 1360.30, note: 'Facebook Ad - Smart Device Promotion' },
+  { id: 'hist-3', date: '2026-09-14', amount_usd: 0.28, amount_lkr: 85.40, note: 'Facebook Ad - Quick Boost Engagement' },
+  { id: 'hist-4', date: '2026-09-20', amount_usd: 1.77, amount_lkr: 539.85, note: 'Facebook Ad - Hardware Engineering Inquiries' },
+  { id: 'hist-5', date: '2026-09-25', amount_usd: 0.28, amount_lkr: 85.40, note: 'Facebook Ad - Retargeting' },
+];
 
 // Seed ONLY the exact records specified in user's prompt
 export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
@@ -30,13 +39,24 @@ export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
     campaign_code: 'CAMP-HIST-TOTAL',
     name: 'Historical Ad Campaign ($3.45 + $4.46 + $0.28 + $1.77 + $0.28)',
     fb_campaign_ref: 'FB-HIST-ALL',
+    platform: 'Facebook',
     start_date: '2026-09-01',
     end_date: '2026-09-26',
-    status: 'closed',
+    status: 'archived',
+    currency: 'USD',
     ad_spend_usd: 10.24,
     exchange_rate: 305.0,
     ad_spend_lkr: 3123.2,
-    notes: 'Total historical ad expenses calculated into one single ad record ($10.24 USD)',
+    allocation_method: 'revenue_based',
+    notes: 'Total historical ad expenses calculated into one single ad record ($10.24 USD). Expand to view all 5 individual transactions.',
+    historical_entries: INITIAL_HISTORICAL_ENTRIES,
+    audit_trail: [
+      {
+        timestamp: '2026-09-26T18:00:00Z',
+        action: 'Campaign Consolidated',
+        details: 'Consolidated 5 historical Meta transactions ($10.24 total) into archived ledger record.',
+      },
+    ],
     created_at: '2026-09-01T10:00:00Z',
     updated_at: '2026-09-26T18:00:00Z',
   },
@@ -45,13 +65,23 @@ export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
     campaign_code: 'CAMP-2026-001',
     name: 'Ad Campaign — Smart Drug Timer & Safety Equipment',
     fb_campaign_ref: 'FB-AD-OCT-236',
+    platform: 'Facebook',
     start_date: '2026-10-10',
     end_date: '2026-10-18',
     status: 'closed',
+    currency: 'USD',
     ad_spend_usd: 2.36,
     exchange_rate: 305.0,
     ad_spend_lkr: 719.8,
-    notes: 'Ad campaign closed. Final ad spend: $2.36 (LKR 719.80)',
+    allocation_method: 'revenue_based',
+    notes: 'Ad campaign closed. Final ad spend: $2.36 (LKR 719.80). Received 3 customer projects.',
+    audit_trail: [
+      {
+        timestamp: '2026-10-18T18:00:00Z',
+        action: 'Campaign Closed & Settled',
+        details: 'Closed by user. Billed ad spend: $2.36 (LKR 719.80) at 305 LKR/USD.',
+      },
+    ],
     created_at: '2026-10-10T09:00:00Z',
     updated_at: '2026-10-18T18:00:00Z',
   },
@@ -60,13 +90,17 @@ export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
     campaign_code: 'CAMP-2026-002',
     name: 'Currently Running Ad 1',
     fb_campaign_ref: 'FB-AD-RUN-01',
+    platform: 'Facebook',
     start_date: '2026-10-20',
     end_date: null,
     status: 'running',
+    currency: 'USD',
     ad_spend_usd: 1.24,
     exchange_rate: 305.0,
     ad_spend_lkr: 378.2,
+    allocation_method: 'revenue_based',
     notes: 'Currently running Facebook ad ($1.24 spent). Inquiries received, orders pending confirmation.',
+    audit_trail: [],
     created_at: '2026-10-20T09:00:00Z',
     updated_at: '2026-10-20T09:00:00Z',
   },
@@ -75,13 +109,17 @@ export const INITIAL_SAMPLE_CAMPAIGNS: AdCampaign[] = [
     campaign_code: 'CAMP-2026-003',
     name: 'Currently Running Ad 2',
     fb_campaign_ref: 'FB-AD-RUN-02',
+    platform: 'Facebook',
     start_date: '2026-10-22',
     end_date: null,
     status: 'running',
+    currency: 'USD',
     ad_spend_usd: 1.87,
     exchange_rate: 305.0,
     ad_spend_lkr: 570.35,
+    allocation_method: 'revenue_based',
     notes: 'Currently running Facebook ad ($1.87 spent). Inquiries received, orders pending confirmation.',
+    audit_trail: [],
     created_at: '2026-10-22T11:00:00Z',
     updated_at: '2026-10-22T11:00:00Z',
   },
@@ -96,7 +134,12 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
     customer_name: 'Dr. K. Perera',
     customer_phone: '0771234567',
     order_date: '2026-10-16',
+    lead_source: 'Facebook Campaign',
     status: 'confirmed',
+    payment_status: 'partially_paid',
+    customer_paid_amount: 10000,
+    supplier_payment_status: 'fully_paid',
+    supplier_paid_amount: 6000,
     notes: 'Smart dispenser prototype with PCB fabrication and testing.',
     created_at: '2026-10-16T14:00:00Z',
     updated_at: '2026-10-16T14:00:00Z',
@@ -111,18 +154,24 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
         markup: 6000,
         client_price: 10000,
         is_financial_pending: false,
+        supplier_payment_status: 'fully_paid',
+        customer_payment_status: 'fully_paid',
+        service_status: 'completed',
         notes: 'Schematic + Board layout',
       },
       {
         id: 'svc-001-2',
         order_id: 'ord-001',
         position: 2,
-        service_name: 'PCB Printing',
+        service_name: 'Print PCB',
         supplier_type: 'outsourced',
         supplier_cost: 2000,
         markup: 1000,
         client_price: 3000,
         is_financial_pending: false,
+        supplier_payment_status: 'fully_paid',
+        customer_payment_status: 'unpaid',
+        service_status: 'in_progress',
         notes: '2-layer board batch',
       },
     ],
@@ -135,7 +184,12 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
     customer_name: 'Apex Construction',
     customer_phone: '0719876543',
     order_date: '2026-10-17',
+    lead_source: 'Facebook Campaign',
     status: 'confirmed',
+    payment_status: 'unpaid',
+    customer_paid_amount: 0,
+    supplier_payment_status: 'unpaid',
+    supplier_paid_amount: 0,
     notes: 'Worker safety helmet IoT sensor node.',
     created_at: '2026-10-17T10:00:00Z',
     updated_at: '2026-10-17T10:00:00Z',
@@ -150,18 +204,24 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
         markup: 4000,
         client_price: 8000,
         is_financial_pending: false,
+        supplier_payment_status: 'unpaid',
+        customer_payment_status: 'unpaid',
+        service_status: 'in_progress',
         notes: 'Compact accelerometer layout',
       },
       {
         id: 'svc-002-2',
         order_id: 'ord-002',
         position: 2,
-        service_name: 'PCB Printing',
+        service_name: 'Print PCB',
         supplier_type: 'outsourced',
         supplier_cost: 3600,
         markup: 1400,
         client_price: 5000,
         is_financial_pending: false,
+        supplier_payment_status: 'unpaid',
+        customer_payment_status: 'unpaid',
+        service_status: 'pending',
         notes: 'Fast turnaround print',
       },
     ],
@@ -174,7 +234,12 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
     customer_name: 'BuildTech Lanka',
     customer_phone: '0754433221',
     order_date: '2026-10-18',
-    status: 'pending',
+    lead_source: 'Facebook Campaign',
+    status: 'quotation_pending',
+    payment_status: 'not_invoiced',
+    customer_paid_amount: 0,
+    supplier_payment_status: 'pending_cost_confirmation',
+    supplier_paid_amount: 0,
     notes: 'Inquiry in progress. PCB printing quotation awaiting vendor response.',
     created_at: '2026-10-18T16:00:00Z',
     updated_at: '2026-10-18T16:00:00Z',
@@ -189,25 +254,48 @@ export const INITIAL_SAMPLE_ORDERS: AdCampaignOrder[] = [
         markup: 4000,
         client_price: 8000,
         is_financial_pending: false,
+        supplier_payment_status: 'unpaid',
+        customer_payment_status: 'not_invoiced',
+        service_status: 'in_progress',
         notes: 'Approved quote for schematic',
       },
       {
         id: 'svc-003-2',
         order_id: 'ord-003',
         position: 2,
-        service_name: 'PCB Printing',
+        service_name: 'Print PCB',
         supplier_type: 'outsourced',
         supplier_cost: null,
         markup: null,
         client_price: null,
         is_financial_pending: true,
+        supplier_payment_status: 'pending_cost_confirmation',
+        customer_payment_status: 'not_invoiced',
+        service_status: 'pending',
         notes: 'Pending final dimensions and supplier quote',
       },
     ],
   },
 ];
 
-export const INITIAL_SAMPLE_EXPENSES: AdCampaignExpense[] = [];
+export const INITIAL_SAMPLE_EXPENSES: AdCampaignExpense[] = [
+  {
+    id: 'exp-init-1',
+    campaign_id: 'camp-closed-236',
+    order_id: 'ord-001',
+    category: 'Packaging',
+    description: 'Custom anti-static packaging boxes for prototypes',
+    expense_date: '2026-10-17',
+    amount: 850,
+    currency: 'LKR',
+    exchange_rate: 305,
+    amount_lkr: 850,
+    allocation_method: 'revenue_based',
+    notes: 'Box packaging',
+    created_at: '2026-10-17T12:00:00Z',
+    updated_at: '2026-10-17T12:00:00Z',
+  },
+];
 
 // Helper: read and write to LocalStorage
 function getLocalCampaigns(): AdCampaign[] {
@@ -298,7 +386,6 @@ export const adCampaignService = {
           .order('start_date', { ascending: false });
 
         if (!error && data && data.length > 0) {
-          // Keep local mirror updated
           setLocalCampaigns(data as AdCampaign[]);
           return data as AdCampaign[];
         }
@@ -326,12 +413,22 @@ export const adCampaignService = {
       ...campaignData,
       id: newId,
       campaign_code: campaignCode,
+      platform: campaignData.platform || 'Facebook',
       status: campaignData.status || 'running',
+      currency: campaignData.currency || 'USD',
       ad_spend_usd: Number(campaignData.ad_spend_usd) || 0,
       exchange_rate: Number(campaignData.exchange_rate) || 305,
       ad_spend_lkr:
         Number(campaignData.ad_spend_lkr) ||
         (Number(campaignData.ad_spend_usd) || 0) * (Number(campaignData.exchange_rate) || 305),
+      allocation_method: campaignData.allocation_method || 'revenue_based',
+      audit_trail: [
+        {
+          timestamp: now,
+          action: 'Campaign Created',
+          details: `Created campaign with initial status ${campaignData.status || 'running'}.`,
+        },
+      ],
       created_at: now,
       updated_at: now,
     };
@@ -375,10 +472,30 @@ export const adCampaignService = {
     const index = campaigns.findIndex(c => c.id === id);
     if (index === -1) throw new Error('Campaign not found');
 
+    const existingCampaign = campaigns[index];
+    const now = new Date().toISOString();
+
+    const auditTrail = existingCampaign.audit_trail || [];
+    if (updates.status && updates.status !== existingCampaign.status) {
+      auditTrail.push({
+        timestamp: now,
+        action: 'Status Change',
+        details: `Status changed from ${existingCampaign.status} to ${updates.status}.`,
+      });
+    }
+    if (updates.ad_spend_usd !== undefined && updates.ad_spend_usd !== existingCampaign.ad_spend_usd) {
+      auditTrail.push({
+        timestamp: now,
+        action: 'Ad Spend Updated',
+        details: `Ad spend updated from $${existingCampaign.ad_spend_usd} to $${updates.ad_spend_usd}.`,
+      });
+    }
+
     const updatedCampaign: AdCampaign = {
-      ...campaigns[index],
+      ...existingCampaign,
       ...updates,
-      updated_at: new Date().toISOString(),
+      audit_trail: auditTrail,
+      updated_at: now,
     };
 
     // Auto-update LKR ad spend if USD or exchange rate changed and LKR not explicitly updated
@@ -427,7 +544,7 @@ export const adCampaignService = {
     const campaigns = getLocalCampaigns().filter(c => c.id !== id);
     setLocalCampaigns(campaigns);
 
-    // Also unassign or delete associated orders & expenses
+    // Unassign associated orders & expenses
     const orders = getLocalOrders().map(o => (o.campaign_id === id ? { ...o, campaign_id: null } : o));
     setLocalOrders(orders);
 
@@ -487,6 +604,9 @@ export const adCampaignService = {
       markup: svc.markup !== null && svc.markup !== undefined ? Number(svc.markup) : null,
       client_price: svc.client_price !== null && svc.client_price !== undefined ? Number(svc.client_price) : null,
       is_financial_pending: Boolean(svc.is_financial_pending),
+      supplier_payment_status: svc.supplier_payment_status || 'unpaid',
+      customer_payment_status: svc.customer_payment_status || 'unpaid',
+      service_status: svc.service_status || 'pending',
     }));
 
     const newOrder: AdCampaignOrder = {
@@ -494,7 +614,12 @@ export const adCampaignService = {
       id: newOrderId,
       order_number: orderNumber,
       campaign_id: orderData.campaign_id || null,
-      status: orderData.status || 'pending',
+      lead_source: orderData.lead_source || (orderData.campaign_id ? 'Facebook Campaign' : 'Direct Message'),
+      status: orderData.status || 'confirmed',
+      payment_status: orderData.payment_status || 'unpaid',
+      customer_paid_amount: Number(orderData.customer_paid_amount) || 0,
+      supplier_payment_status: orderData.supplier_payment_status || 'unpaid',
+      supplier_paid_amount: Number(orderData.supplier_paid_amount) || 0,
       services: newServices,
       created_at: now,
       updated_at: now,
@@ -570,6 +695,9 @@ export const adCampaignService = {
         markup: svc.markup !== null && svc.markup !== undefined ? Number(svc.markup) : null,
         client_price: svc.client_price !== null && svc.client_price !== undefined ? Number(svc.client_price) : null,
         is_financial_pending: Boolean(svc.is_financial_pending),
+        supplier_payment_status: svc.supplier_payment_status || 'unpaid',
+        customer_payment_status: svc.customer_payment_status || 'unpaid',
+        service_status: svc.service_status || 'pending',
       }));
     }
 
@@ -596,7 +724,6 @@ export const adCampaignService = {
           .eq('id', id);
 
         if (services) {
-          // Replace services
           await supabase.from('ad_order_services').delete().eq('order_id', id);
           if (updatedServices.length > 0) {
             const dbServices = updatedServices.map(s => ({
@@ -621,6 +748,43 @@ export const adCampaignService = {
     orders[index] = updatedOrder;
     setLocalOrders(orders);
     return updatedOrder;
+  },
+
+  async addServiceToOrder(
+    orderId: string,
+    serviceData: Omit<AdOrderService, 'id' | 'order_id' | 'position'>
+  ): Promise<AdCampaignOrder> {
+    const orders = getLocalOrders();
+    const order = orders.find(o => o.id === orderId);
+    if (!order) throw new Error('Order not found');
+
+    const newPosition = (order.services || []).length + 1;
+    const newService: AdOrderService = {
+      ...serviceData,
+      id: `svc-${Date.now()}`,
+      order_id: orderId,
+      position: newPosition,
+      supplier_type: serviceData.supplier_type || 'outsourced',
+      supplier_cost: serviceData.supplier_cost !== null && serviceData.supplier_cost !== undefined ? Number(serviceData.supplier_cost) : null,
+      markup: serviceData.markup !== null && serviceData.markup !== undefined ? Number(serviceData.markup) : null,
+      client_price: serviceData.client_price !== null && serviceData.client_price !== undefined ? Number(serviceData.client_price) : null,
+      is_financial_pending: Boolean(serviceData.is_financial_pending),
+      supplier_payment_status: serviceData.supplier_payment_status || 'unpaid',
+      customer_payment_status: serviceData.customer_payment_status || 'unpaid',
+      service_status: serviceData.service_status || 'pending',
+    };
+
+    const updatedServices = [...(order.services || []), newService];
+    return this.updateOrder(orderId, {}, updatedServices);
+  },
+
+  async deleteServiceFromOrder(orderId: string, serviceId: string): Promise<AdCampaignOrder> {
+    const orders = getLocalOrders();
+    const order = orders.find(o => o.id === orderId);
+    if (!order) throw new Error('Order not found');
+
+    const updatedServices = (order.services || []).filter(s => s.id !== serviceId);
+    return this.updateOrder(orderId, {}, updatedServices);
   },
 
   async updateOrderStatus(id: string, status: OrderStatus): Promise<AdCampaignOrder> {
@@ -689,6 +853,7 @@ export const adCampaignService = {
       amount,
       exchange_rate: exchangeRate,
       amount_lkr: amountLkr,
+      allocation_method: expenseData.allocation_method || 'revenue_based',
       created_at: now,
       updated_at: now,
     };
@@ -752,4 +917,3 @@ export const adCampaignService = {
     localStorage.removeItem(STORAGE_KEY_EXPENSES);
   },
 };
-

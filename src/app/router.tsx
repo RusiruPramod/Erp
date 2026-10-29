@@ -161,6 +161,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'expenses',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ExpensesPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'ad-campaigns',
         element: <Navigate to="/campaigns" replace />,
       },

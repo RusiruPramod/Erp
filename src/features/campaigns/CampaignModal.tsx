@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { Button } from '../../components/ui/Button';
-import { AdCampaign, CampaignStatus } from '../../types';
+import { AdCampaign, CampaignStatus, ExpenseAllocationMethod } from '../../types';
 import { formatLKR, formatDateInput } from '../../lib/formatters';
 
 interface CampaignModalProps {
@@ -14,12 +14,15 @@ interface CampaignModalProps {
   onSave: (campaignData: {
     name: string;
     fb_campaign_ref?: string | null;
+    platform?: string;
     start_date: string;
     end_date?: string | null;
     status: CampaignStatus;
+    currency?: 'USD' | 'LKR';
     ad_spend_usd: number;
     exchange_rate: number;
     ad_spend_lkr: number;
+    allocation_method?: ExpenseAllocationMethod;
     notes?: string | null;
   }) => Promise<void>;
 }
@@ -34,9 +37,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
 
   const [name, setName] = useState('');
   const [fbRef, setFbRef] = useState('');
+  const [platform, setPlatform] = useState('Facebook');
   const [startDate, setStartDate] = useState(formatDateInput(new Date()));
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState<CampaignStatus>('running');
+  const [currency, setCurrency] = useState<'USD' | 'LKR'>('USD');
+  const [allocationMethod, setAllocationMethod] = useState<ExpenseAllocationMethod>('revenue_based');
   const [adSpendUsd, setAdSpendUsd] = useState<number | ''>(0);
   const [exchangeRate, setExchangeRate] = useState<number | ''>(305);
   const [manualLkr, setManualLkr] = useState<number | ''>('');
@@ -48,9 +54,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
     if (campaignToEdit) {
       setName(campaignToEdit.name || '');
       setFbRef(campaignToEdit.fb_campaign_ref || '');
+      setPlatform(campaignToEdit.platform || 'Facebook');
       setStartDate(formatDateInput(campaignToEdit.start_date));
       setEndDate(campaignToEdit.end_date ? formatDateInput(campaignToEdit.end_date) : '');
       setStatus(campaignToEdit.status || 'running');
+      setCurrency(campaignToEdit.currency || 'USD');
+      setAllocationMethod(campaignToEdit.allocation_method || 'revenue_based');
       setAdSpendUsd(campaignToEdit.ad_spend_usd ?? 0);
       setExchangeRate(campaignToEdit.exchange_rate ?? 305);
       setManualLkr(campaignToEdit.ad_spend_lkr ?? '');
@@ -58,9 +67,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
     } else {
       setName('');
       setFbRef('');
+      setPlatform('Facebook');
       setStartDate(formatDateInput(new Date()));
       setEndDate('');
       setStatus('running');
+      setCurrency('USD');
+      setAllocationMethod('revenue_based');
       setAdSpendUsd(0);
       setExchangeRate(305);
       setManualLkr('');
@@ -103,12 +115,15 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       await onSave({
         name: name.trim(),
         fb_campaign_ref: fbRef.trim() || null,
+        platform,
         start_date: startDate,
         end_date: endDate || null,
         status,
+        currency,
         ad_spend_usd: finalUsd,
         exchange_rate: finalRate,
         ad_spend_lkr: finalLkr,
+        allocation_method: allocationMethod,
         notes: notes.trim() || null,
       });
       onClose();
@@ -124,38 +139,68 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? 'Edit Ad Campaign' : 'Start New Ad Campaign'}
-      description="Each Facebook advertising campaign operates as an independent session with its own expenses and orders."
+      description="Create a standalone advertising campaign session with separate spend, dates, and order tracking."
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Campaign Name */}
         <Input
           label="Campaign Name / Reference *"
-          placeholder="e.g. October PCB Design & Smart Medicine Dispenser Campaign"
+          placeholder="e.g. October PCB Promotion & Prototype Ads"
           value={name}
           onChange={e => setName(e.target.value)}
           error={errors.name}
           autoFocus
         />
 
-        {/* Facebook Reference & Status */}
+        {/* Platform & Facebook Reference */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Facebook Campaign Ref (Optional)"
-            placeholder="e.g. FB-ACT-OCT-01 or Campaign ID"
-            value={fbRef}
-            onChange={e => setFbRef(e.target.value)}
-            helperText="Matches your Meta Ads Manager reference"
+          <Select
+            label="Advertising Platform"
+            value={platform}
+            onChange={e => setPlatform(e.target.value)}
+            options={[
+              { value: 'Facebook', label: 'Facebook / Meta Ads' },
+              { value: 'Instagram', label: 'Instagram Ads' },
+              { value: 'Google', label: 'Google Search / Ads' },
+              { value: 'TikTok', label: 'TikTok Ads' },
+              { value: 'Other', label: 'Other Platform' },
+            ]}
           />
 
+          <Input
+            label="Campaign Reference / ID (Optional)"
+            placeholder="e.g. FB-OCT-PCB-01"
+            value={fbRef}
+            onChange={e => setFbRef(e.target.value)}
+            helperText="Internal or Meta Ads Manager tag"
+          />
+        </div>
+
+        {/* Campaign Status & Expense Allocation Method */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Campaign Status"
             value={status}
             onChange={e => setStatus(e.target.value as CampaignStatus)}
             options={[
-              { value: 'running', label: 'Running (Active Inquiries)' },
-              { value: 'review', label: 'Closing / Review' },
-              { value: 'closed', label: 'Closed (Finalized)' },
+              { value: 'planned', label: 'Planned (Not yet started)' },
+              { value: 'running', label: 'Running (Actively running ads)' },
+              { value: 'waiting_for_orders', label: 'Waiting for Orders (Ad finished, collecting leads)' },
+              { value: 'review', label: 'Closing / In Review' },
+              { value: 'closed', label: 'Closed (Finalized session)' },
+              { value: 'archived', label: 'Archived (Historical reference)' },
+            ]}
+          />
+
+          <Select
+            label="Ad Spend Allocation Method"
+            value={allocationMethod}
+            onChange={e => setAllocationMethod(e.target.value as ExpenseAllocationMethod)}
+            options={[
+              { value: 'revenue_based', label: 'Revenue-Based Allocation (Proportional)' },
+              { value: 'equal', label: 'Equal Allocation (Even split per order)' },
+              { value: 'manual', label: 'Manually Entered Allocation' },
             ]}
           />
         </div>
@@ -175,7 +220,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
             label="End Date (Optional)"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
-            helperText="Leave empty while the campaign is running"
+            helperText="Leave empty while the campaign is ongoing"
           />
         </div>
 
@@ -223,7 +268,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                   setManualLkr(Math.round(adSpendUsd * rate * 100) / 100);
                 }
               }}
-              helperText="Current bank/card rate"
+              helperText="Configurable rate"
             />
 
             <Input
@@ -234,12 +279,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
               placeholder="0.00"
               value={manualLkr === '' ? '' : manualLkr}
               onChange={e => setManualLkr(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              helperText="Calculated or manual override"
+              helperText="User editable LKR amount"
             />
           </div>
 
           <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-200/60 text-neutral-600">
-            <span>Summary:</span>
+            <span>Spend Summary:</span>
             <span className="font-semibold text-neutral-900">
               ${Number(adSpendUsd || 0).toFixed(2)} USD ≈ {formatLKR(calculatedLkr)}
             </span>
@@ -268,4 +313,3 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
     </Modal>
   );
 };
-

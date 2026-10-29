@@ -1,184 +1,124 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Receipt,
   Plus,
   Search,
   Download,
-  Filter,
   Edit2,
   Trash2,
-  TrendingDown,
+  Package,
+  Truck,
+  Wifi,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Card } from '../../components/ui/Card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { TableSkeleton } from '../../components/ui/Skeleton';
-import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
-import { QuickAddExpenseRow } from './QuickAddExpenseRow';
-import { ExpenseFormModal } from './ExpenseFormModal';
-import { Expense } from '../../types';
+import { useErpData } from '../../context/ErpDataContext';
+import { AdCampaignExpense } from '../../types';
 import { formatLKR, formatDate } from '../../lib/formatters';
 import { exportToCsv } from '../../lib/csv';
-import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { CampaignExpenseModal } from '../campaigns/CampaignExpenseModal';
 import { toast } from 'sonner';
 
 export const ExpensesPage: React.FC = () => {
-  const queryClient = useQueryClient();
-
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-    endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
-  });
+  const {
+    expenses,
+    campaigns,
+    orders,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    resetToDefaultSampleData,
+  } = useErpData();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [projectFilter, setProjectFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [platformFilter, setPlatformFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
+  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
-  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<AdCampaignExpense | null>(null);
+  const [expenseToDelete, setExpenseToDelete] = useState<AdCampaignExpense | null>(null);
 
-  // Projects list for filter dropdown
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects-select'],
-    queryFn: async () => {
-      if (!isSupabaseConfigured) return [];
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, name')
-        .order('name', { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
+  // Filtered expenses
+  const filteredExpenses = expenses.filter(e => {
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchDesc = e.description?.toLowerCase().includes(term);
+      const matchCat = e.category?.toLowerCase().includes(term);
+      if (!matchDesc && !matchCat) return false;
+    }
+
+    if (categoryFilter !== 'all' && e.category !== categoryFilter) {
+      return false;
+    }
+
+    return true;
   });
 
-  // Query expenses with filters
-  const { data: expenses = [], isLoading } = useQuery({
-    queryKey: [
-      'expenses',
-      dateRange.startDate,
-      dateRange.endDate,
-      searchTerm,
-      projectFilter,
-      typeFilter,
-      platformFilter,
-    ],
-    queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return [];
-      }
+  // Calculate totals
+  const totalAmount = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount_lkr || e.amount) || 0), 0);
+  const packagingTotal = expenses
+    .filter(e => e.category === 'Packaging')
+    .reduce((sum, e) => sum + (Number(e.amount_lkr || e.amount) || 0), 0);
+  const deliveryTotal = expenses
+    .filter(e => e.category === 'Delivery')
+    .reduce((sum, e) => sum + (Number(e.amount_lkr || e.amount) || 0), 0);
+  const reloadTotal = expenses
+    .filter(e => e.category === 'Reload / Internet Expenses')
+    .reduce((sum, e) => sum + (Number(e.amount_lkr || e.amount) || 0), 0);
 
-      let query = supabase
-        .from('expenses')
-        .select('*, projects(name)')
-        .gte('expense_date', dateRange.startDate)
-        .lte('expense_date', dateRange.endDate)
-        .order('expense_date', { ascending: false });
-
-      if (searchTerm) {
-        query = query.ilike('description', `%${searchTerm}%`);
-      }
-
-      if (projectFilter !== 'all') {
-        if (projectFilter === 'general') {
-          query = query.is('project_id', null);
-        } else {
-          query = query.eq('project_id', projectFilter);
-        }
-      }
-
-      if (typeFilter !== 'all') {
-        query = query.eq('type', typeFilter);
-      }
-
-      if (platformFilter !== 'all') {
-        query = query.eq('platform', platformFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Totals calculation
-  const totalAmount = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const adSpendTotal = expenses
-    .filter(e => e.type === 'advertisement')
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  const generalTotal = expenses
-    .filter(e => e.type === 'other')
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      if (!isSupabaseConfigured) return;
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      queryClient.invalidateQueries({ queryKey: ['project_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Expense deleted');
-      setDeletingExpense(null);
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to delete expense');
-    },
-  });
-
+  // Export CSV
   const handleExportCsv = () => {
-    const rows = expenses.map(e => ({
-      date: formatDate(e.expense_date),
-      type: e.type,
-      platform_or_category: e.platform || e.category || 'General',
-      project: (e as any).projects?.name || 'General Overhead',
-      description: e.description,
-      amount: e.amount,
+    const rows = filteredExpenses.map(e => ({
+      Date: formatDate(e.expense_date),
+      Category: e.category,
+      Description: e.description,
+      'Amount (LKR)': e.amount_lkr || e.amount,
+      Notes: e.notes || '',
     }));
-
-    exportToCsv(
-      `codecrew-expenses-${dateRange.startDate}-to-${dateRange.endDate}`,
-      rows,
-      [
-        { key: 'date', label: 'Date' },
-        { key: 'project', label: 'Project' },
-        { key: 'type', label: 'Type' },
-        { key: 'platform_or_category', label: 'Platform / Category' },
-        { key: 'description', label: 'Description' },
-        { key: 'amount', label: 'Amount (LKR)' },
-      ]
-    );
+    exportToCsv(`expenses-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success('Expenses exported to CSV');
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="h-full w-full bg-white overflow-y-auto p-4 md:p-8 space-y-6">
+      {/* 1. Header with Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-neutral-900 tracking-tight">
-            Expenses
-          </h1>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Log advertisement spend and business overhead date-wise.
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 text-[#FF8C00] flex items-center justify-center shadow-2xs">
+              <Receipt className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900">
+                Business Expenses
+              </h1>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Track delivery, packaging, and internet/reload operational costs.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
-            leftIcon={<Download className="w-4 h-4" />}
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            onClick={() => {
+              resetToDefaultSampleData();
+              toast.success('Expenses reset to sample data');
+            }}
+          >
+            Reset Sample Data
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<Download className="w-3.5 h-3.5" />}
             onClick={handleExportCsv}
-            disabled={expenses.length === 0}
+            disabled={filteredExpenses.length === 0}
           >
             Export CSV
           </Button>
@@ -186,209 +126,241 @@ export const ExpensesPage: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            leftIcon={<Plus className="w-4 h-4" />}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
             onClick={() => {
               setExpenseToEdit(null);
               setIsModalOpen(true);
             }}
           >
-            Add Expense
+            + Add Expense
           </Button>
         </div>
       </div>
 
-      {/* Date Range & Total Summary Strip */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-4 rounded-xl border border-border shadow-xs">
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      {/* 2. Top Summary KPI Cards (Delivery, Packaging, Internet/Reload, Total) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+              Total Expenses
+            </span>
+            <Receipt className="w-3.5 h-3.5 text-neutral-600" />
+          </div>
+          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+            {formatLKR(totalAmount)}
+          </div>
+          <p className="text-[10px] text-neutral-400 mt-1">All recorded overheads</p>
+        </div>
 
-        <div className="flex items-center gap-4 text-xs">
-          <div>
-            <span className="text-neutral-400 block text-[10px] uppercase font-bold">
-              Ad Spend (Outcome)
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+              Packaging Boxes
             </span>
-            <span className="font-mono font-bold text-[#FF8C00]">
-              {formatLKR(adSpendTotal)}
-            </span>
+            <Package className="w-3.5 h-3.5 text-orange-600" />
           </div>
-          <div className="h-6 w-px bg-border" />
-          <div>
-            <span className="text-neutral-400 block text-[10px] uppercase font-bold">
-              Other Expenses
-            </span>
-            <span className="font-mono font-bold text-neutral-800">
-              {formatLKR(generalTotal)}
-            </span>
+          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+            {formatLKR(packagingTotal)}
           </div>
-          <div className="h-6 w-px bg-border" />
-          <div>
-            <span className="text-neutral-400 block text-[10px] uppercase font-bold">
-              Grand Total
+          <p className="text-[10px] text-neutral-400 mt-1">Anti-static boxes & bubble wrap</p>
+        </div>
+
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+              Delivery / Courier
             </span>
-            <span className="font-mono font-black text-neutral-950 text-sm">
-              {formatLKR(totalAmount)}
-            </span>
+            <Truck className="w-3.5 h-3.5 text-blue-600" />
           </div>
+          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+            {formatLKR(deliveryTotal)}
+          </div>
+          <p className="text-[10px] text-neutral-400 mt-1">Customer prototype dispatch</p>
+        </div>
+
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+              Internet & Reload
+            </span>
+            <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+          </div>
+          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+            {formatLKR(reloadTotal)}
+          </div>
+          <p className="text-[10px] text-neutral-400 mt-1">WhatsApp & customer support</p>
         </div>
       </div>
 
-      {/* Quick Add Row */}
-      <QuickAddExpenseRow />
-
-      {/* Filters Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-border shadow-xs">
-        <div className="relative">
-          <Input
-            placeholder="Search description..."
+      {/* 3. Search and Category Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search description or category..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-4 h-4" />}
-            className="h-9 text-xs"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00]"
           />
         </div>
 
-        <Select
-          value={projectFilter}
-          onChange={e => setProjectFilter(e.target.value)}
-          className="h-9 text-xs"
-        >
-          <option value="all">All Projects & Overhead</option>
-          <option value="general">General Overhead (No Project)</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
-
-        <Select
-          value={typeFilter}
-          onChange={e => setTypeFilter(e.target.value)}
-          className="h-9 text-xs"
-        >
-          <option value="all">All Expense Types</option>
-          <option value="advertisement">Advertisement</option>
-          <option value="other">Other</option>
-        </Select>
-
-        <Select
-          value={platformFilter}
-          onChange={e => setPlatformFilter(e.target.value)}
-          className="h-9 text-xs"
-        >
-          <option value="all">All Platforms</option>
-          <option value="Facebook">Facebook</option>
-          <option value="Instagram">Instagram</option>
-          <option value="Google">Google Ads</option>
-          <option value="TikTok">TikTok</option>
-          <option value="YouTube">YouTube</option>
-          <option value="Other">Other</option>
-        </Select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-neutral-100 p-1 rounded-lg border border-neutral-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('all')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                categoryFilter === 'all'
+                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              All ({expenses.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('Packaging')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                categoryFilter === 'Packaging'
+                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              Packaging
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('Delivery')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                categoryFilter === 'Delivery'
+                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              Delivery
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('Reload / Internet Expenses')}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                categoryFilter === 'Reload / Internet Expenses'
+                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              Internet / Reload
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Expenses Table */}
-      {isLoading ? (
-        <TableSkeleton rows={6} cols={6} />
-      ) : expenses.length === 0 ? (
-        <EmptyState
-          icon={<Receipt className="w-6 h-6" />}
-          title="No expenses found"
-          description="Log your daily ad spend or overhead using the quick add row above."
-          actionLabel="Add Expense"
-          onAction={() => {
-            setExpenseToEdit(null);
-            setIsModalOpen(true);
-          }}
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Type / Platform</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount (LKR)</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {expenses.map(e => (
-              <TableRow key={e.id}>
-                <TableCell className="text-xs text-neutral-600">
-                  {formatDate(e.expense_date)}
-                </TableCell>
-                <TableCell>
-                  {(e as any).projects?.name ? (
-                    <span className="font-semibold text-neutral-900 text-xs">
-                      {(e as any).projects.name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-neutral-400 italic">
-                      General Overhead
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800">
-                    {e.platform || e.category || 'General'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-xs font-medium text-neutral-800">
-                  {e.description}
-                </TableCell>
-                <TableCell className="text-right font-mono text-xs font-bold text-neutral-900">
-                  {formatLKR(e.amount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setExpenseToEdit(e);
-                        setIsModalOpen(true);
-                      }}
-                      title="Edit Expense"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-neutral-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeletingExpense(e)}
-                      title="Delete Expense"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      {/* 4. Expenses Table */}
+      <div className="w-full overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-2xs">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="bg-neutral-100/90 text-neutral-700 font-bold uppercase border-b border-neutral-200 text-[11px]">
+              <th className="px-3 py-3">Date</th>
+              <th className="px-3 py-3">Category</th>
+              <th className="px-3 py-3">Description</th>
+              <th className="px-3 py-3">Associated Campaign / Project</th>
+              <th className="px-3 py-3 text-right font-bold">Amount (LKR)</th>
+              <th className="px-3 py-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-200">
+            {filteredExpenses.map(expense => {
+              const assignedCampaign = campaigns.find(c => c.id === expense.campaign_id);
+              const assignedOrder = orders.find(o => o.id === expense.order_id);
 
-      {/* Expense Modal */}
-      <ExpenseFormModal
+              return (
+                <tr key={expense.id} className="hover:bg-neutral-50 transition-colors">
+                  <td className="px-3 py-3.5 whitespace-nowrap text-neutral-600">
+                    {formatDate(expense.expense_date)}
+                  </td>
+                  <td className="px-3 py-3.5 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-neutral-100 text-neutral-700 border border-neutral-200">
+                      {expense.category}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3.5 font-medium text-neutral-900 max-w-xs">
+                    {expense.description}
+                  </td>
+                  <td className="px-3 py-3.5 whitespace-nowrap text-neutral-500">
+                    {assignedOrder ? (
+                      <span className="font-semibold text-neutral-800">
+                        {assignedOrder.order_name}
+                      </span>
+                    ) : assignedCampaign ? (
+                      <span className="font-semibold text-neutral-800">
+                        {assignedCampaign.campaign_code}
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400 italic">General Business Overhead</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3.5 text-right font-mono font-bold text-neutral-900 whitespace-nowrap">
+                    {formatLKR(expense.amount_lkr || expense.amount)}
+                  </td>
+                  <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpenseToEdit(expense);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-1 rounded text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100"
+                        title="Edit Expense"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpenseToDelete(expense)}
+                        className="p-1 rounded text-neutral-400 hover:text-red-600 hover:bg-neutral-100"
+                        title="Delete Expense"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Expense Modal (Add / Edit) */}
+      <CampaignExpenseModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setExpenseToEdit(null);
-        }}
+        onClose={() => setIsModalOpen(false)}
+        campaigns={campaigns}
+        orders={orders}
         expenseToEdit={expenseToEdit}
+        onSave={async data => {
+          if (expenseToEdit) {
+            updateExpense(expenseToEdit.id, data as any);
+            toast.success('Expense updated');
+          } else {
+            addExpense(data as any);
+            toast.success('Expense recorded');
+          }
+        }}
       />
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        isOpen={Boolean(deletingExpense)}
-        onClose={() => setDeletingExpense(null)}
-        onConfirm={() => deletingExpense && deleteMutation.mutate(deletingExpense.id)}
-        title="Delete Expense"
-        message="Are you sure you want to delete this expense record?"
-        confirmText="Delete"
-        isDestructive
-        isLoading={deleteMutation.isPending}
-      />
-    </div>
-  );
-};
+        isOpen={Boolean(expenseToDelete)}
+        onClose={() => setExpenseToDelete(null)}
+        onConfirm={() => {
+          if (expenseToDelete) {
+            deleteExpense(expenseToDelete.id);
+            toast.success('Expense deleted');
+            setExpenseToDelete(null);
+          }
+        }}
+        title="Delete Expense Record"
+        message={`Are you sure you want to delete "${expenseToDelete?.description}"?`}
+        confirmText

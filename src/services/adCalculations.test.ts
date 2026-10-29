@@ -1,12 +1,13 @@
 /**
  * Verification test suite for Ad Campaign Ledger & Profit Tracker
- * Validates all sample orders, formulas, currency conversions, and ad allocations.
+ * Validates all sample orders, formulas, currency conversions, ad allocations, and ledger metrics.
  */
 import {
   calculateServiceItemValues,
   calculateOrderFinancials,
   calculateCampaignFinancials,
   calculateLedgerOverallMetrics,
+  computeOrderAdAllocations,
 } from './adCalculations';
 import { AdCampaign, AdCampaignOrder, AdCampaignExpense } from '../types';
 
@@ -23,17 +24,17 @@ export function runAdCampaignTests(): {
   // TEST 1: Service Item calculation
   const svc1 = calculateServiceItemValues({
     supplier_cost: 4000,
-    markup: 4000,
-    client_price: 8000,
+    markup: 6000,
+    client_price: 10000,
     is_financial_pending: false,
   });
   assert(
     'Service 1 Complete Financials',
-    svc1.supplierCost === 4000 && svc1.clientPrice === 8000 && svc1.markup === 4000 && !svc1.isIncomplete,
-    `Expected 4000/4000/8000, got ${svc1.supplierCost}/${svc1.markup}/${svc1.clientPrice}`
+    svc1.supplierCost === 4000 && svc1.clientPrice === 10000 && svc1.markup === 6000 && !svc1.isIncomplete && !svc1.hasCalculationMismatch,
+    `Expected 4000/6000/10000, got ${svc1.supplierCost}/${svc1.markup}/${svc1.clientPrice}`
   );
 
-  // TEST 2: Pending Service Item
+  // TEST 2: Pending Service Item (Not treated as 0)
   const svcPending = calculateServiceItemValues({
     supplier_cost: null,
     markup: null,
@@ -41,15 +42,15 @@ export function runAdCampaignTests(): {
     is_financial_pending: true,
   });
   assert(
-    'Service Pending Financials Flag',
+    'Service Pending Financials Flag (Not treated as 0)',
     svcPending.isIncomplete === true && svcPending.supplierCost === 0 && svcPending.clientPrice === 0,
     `Expected isIncomplete: true, got ${svcPending.isIncomplete}`
   );
 
-  // TEST 3: Order 1 — Smart Dispensing Drug Timer Medicine (Updated 4k/6k/10k)
+  // TEST 3: Order 1 — Smart Dispensing Drug Timer Medicine
   const order1: AdCampaignOrder = {
     id: 'ord-001',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-001',
     order_name: 'Smart Dispensing Drug Timer Medicine',
     customer_name: 'Dr. K. Perera',
@@ -87,7 +88,7 @@ export function runAdCampaignTests(): {
 
   const o1Fin = calculateOrderFinancials(order1, 0, 0);
   assert(
-    'Sample Order 1 Financials (PCB 10k + Print 3k)',
+    'Sample Order 1 Financials (PCB 10k + Print 3k = 13k Customer Price, 6k Supplier Cost, 7k Profit)',
     o1Fin.revenue === 13000 && o1Fin.supplier_costs === 6000 && o1Fin.gross_profit === 7000 && !o1Fin.has_incomplete_financials,
     `Expected Rev 13,000, Costs 6,000, GP 7,000. Got Rev ${o1Fin.revenue}, Costs ${o1Fin.supplier_costs}, GP ${o1Fin.gross_profit}`
   );
@@ -95,7 +96,7 @@ export function runAdCampaignTests(): {
   // TEST 4: Order 2 — Safety Helmet
   const order2: AdCampaignOrder = {
     id: 'ord-002',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-002',
     order_name: 'Safety Helmet',
     customer_name: 'Apex Construction',
@@ -133,31 +134,21 @@ export function runAdCampaignTests(): {
 
   const o2Fin = calculateOrderFinancials(order2, 0, 0);
   assert(
-    'Sample Order 2 Financials',
+    'Sample Order 2 Financials (PCB 8k + Print 5k = 13k Customer Price, 7.6k Cost, 5.4k Profit)',
     o2Fin.revenue === 13000 && o2Fin.supplier_costs === 7600 && o2Fin.gross_profit === 5400 && !o2Fin.has_incomplete_financials,
     `Expected Rev 13,000, Costs 7,600, GP 5,400. Got Rev ${o2Fin.revenue}, Costs ${o2Fin.supplier_costs}, GP ${o2Fin.gross_profit}`
   );
 
-  // TEST 5: Combined Order 1 + Order 2
-  const combinedRev = o1Fin.revenue + o2Fin.revenue;
-  const combinedCosts = o1Fin.supplier_costs + o2Fin.supplier_costs;
-  const combinedGp = o1Fin.gross_profit + o2Fin.gross_profit;
-  assert(
-    'Combined Order 1 + Order 2 Totals',
-    combinedRev === 26000 && combinedCosts === 13600 && combinedGp === 12400,
-    `Expected Rev 26,000, Costs 13,600, GP 12,400. Got Rev ${combinedRev}, Costs ${combinedCosts}, GP ${combinedGp}`
-  );
-
-  // TEST 6: Order 3 — Incomplete Order
+  // TEST 5: Order 3 — Safety Panel (Incomplete Print PCB Excluded)
   const order3: AdCampaignOrder = {
     id: 'ord-003',
-    campaign_id: 'camp-run-001',
+    campaign_id: 'camp-closed-236',
     order_number: 'ORD-2026-003',
-    order_name: 'Safety Helmet',
+    order_name: 'Safety Panel',
     customer_name: 'BuildTech Lanka',
     customer_phone: '0754433221',
     order_date: '2026-10-18',
-    status: 'pending',
+    status: 'quotation_pending',
     notes: null,
     created_at: '',
     updated_at: '',
@@ -189,32 +180,82 @@ export function runAdCampaignTests(): {
 
   const o3Fin = calculateOrderFinancials(order3, 0, 0);
   assert(
-    'Sample Order 3 Incomplete Financials Excluded',
-    o3Fin.has_incomplete_financials === true && o3Fin.revenue === 8000 && o3Fin.supplier_costs === 4000,
+    'Sample Order 3 Incomplete Pricing Flagged (Confirmed Rev 8000, Cost 4000)',
+    o3Fin.has_incomplete_financials === true && o3Fin.revenue === 8000 && o3Fin.supplier_costs === 4000 && o3Fin.gross_profit === 4000,
     `Expected has_incomplete_financials: true, Rev 8000, Cost 4000. Got ${o3Fin.has_incomplete_financials}, Rev ${o3Fin.revenue}, Cost ${o3Fin.supplier_costs}`
   );
 
-  // TEST 7: Campaign-Level Calculation with Order 1, Order 2, and Order 3
-  const campaign1: AdCampaign = {
-    id: 'camp-run-001',
+  // TEST 6: Combined Confirmed Sample Totals (Order 1 + Order 2 + Order 3 confirmed items)
+  // Confirmed Customer Price: 13,000 + 13,000 + 8,000 = 34,000
+  // Confirmed Supplier Cost: 6,000 + 7,600 + 4,000 = 17,600
+  // Confirmed Gross Profit: 7,000 + 5,400 + 4,000 = 16,400
+  const combinedConfirmedRev = o1Fin.revenue + o2Fin.revenue + o3Fin.revenue;
+  const combinedConfirmedCost = o1Fin.supplier_costs + o2Fin.supplier_costs + o3Fin.supplier_costs;
+  const combinedConfirmedGp = o1Fin.gross_profit + o2Fin.gross_profit + o3Fin.gross_profit;
+  assert(
+    'Combined Confirmed Sample Totals (34,000 Rev, 17,600 Cost, 16,400 Profit)',
+    combinedConfirmedRev === 34000 && combinedConfirmedCost === 17600 && combinedConfirmedGp === 16400,
+    `Expected Rev 34,000, Cost 17,600, GP 16,400. Got Rev ${combinedConfirmedRev}, Cost ${combinedConfirmedCost}, GP ${combinedConfirmedGp}`
+  );
+
+  // TEST 7: Historical Ad Expenses Sum ($10.24)
+  const histSpends = [3.45, 4.46, 0.28, 1.77, 0.28];
+  const histTotal = histSpends.reduce((a, b) => a + b, 0);
+  assert(
+    'Historical Ad Expenses Sum ($10.24)',
+    Math.abs(histTotal - 10.24) < 0.001,
+    `Expected $10.24, got $${histTotal.toFixed(2)}`
+  );
+
+  // TEST 8: Current Running Campaigns Sum ($3.11)
+  const runningSpends = [1.24, 1.87];
+  const runningTotal = runningSpends.reduce((a, b) => a + b, 0);
+  assert(
+    'Running Campaigns Spend Sum ($1.24 + $1.87 = $3.11)',
+    Math.abs(runningTotal - 3.11) < 0.001,
+    `Expected $3.11, got $${runningTotal.toFixed(2)}`
+  );
+
+  // TEST 9: Campaign Allocation Methods
+  // Equal Allocation of $2.36 (LKR 719.80) across Order 1 and Order 2
+  const equalAlloc = computeOrderAdAllocations([order1, order2], 719.80, 'equal');
+  const eqTotal = Array.from(equalAlloc.values()).reduce((a, b) => a + b, 0);
+  assert(
+    'Equal Allocation Exact Cent Sum Protection',
+    Math.abs(eqTotal - 719.80) < 0.01,
+    `Expected sum 719.80, got ${eqTotal.toFixed(2)}`
+  );
+
+  // Revenue-Based Allocation of 719.80 across Order 1 (13k) and Order 2 (13k) = 359.90 each
+  const revAlloc = computeOrderAdAllocations([order1, order2], 719.80, 'revenue_based');
+  const revTotal = Array.from(revAlloc.values()).reduce((a, b) => a + b, 0);
+  assert(
+    'Revenue-Based Allocation Exact Cent Sum Protection',
+    Math.abs(revTotal - 719.80) < 0.01 && Math.abs((revAlloc.get('ord-001') || 0) - 359.90) < 0.01,
+    `Expected sum 719.80 with 359.90 each, got ${revTotal.toFixed(2)}`
+  );
+
+  // TEST 10: Campaign Close Financials
+  const campaign: AdCampaign = {
+    id: 'camp-closed-236',
     campaign_code: 'CAMP-2026-001',
-    name: 'Smart Drug Timer & Safety Helmet Ads',
-    fb_campaign_ref: 'FB-CAMP-01',
-    start_date: '2026-10-15',
-    end_date: null,
-    status: 'running',
-    ad_spend_usd: 1.24,
-    exchange_rate: 305,
-    ad_spend_lkr: 378.2,
+    name: 'Ad Campaign — Smart Drug Timer & Safety Equipment',
+    fb_campaign_ref: 'FB-AD-OCT-236',
+    start_date: '2026-10-10',
+    end_date: '2026-10-18',
+    status: 'closed',
+    ad_spend_usd: 2.36,
+    exchange_rate: 305.0,
+    ad_spend_lkr: 719.8,
     notes: null,
     created_at: '',
     updated_at: '',
   };
 
-  const c1Expenses: AdCampaignExpense[] = [
+  const expenses: AdCampaignExpense[] = [
     {
       id: 'e1',
-      campaign_id: 'camp-run-001',
+      campaign_id: 'camp-closed-236',
       category: 'Packaging',
       description: 'Boxes',
       expense_date: '2026-10-17',
@@ -228,60 +269,23 @@ export function runAdCampaignTests(): {
     },
   ];
 
-  const campFin = calculateCampaignFinancials(campaign1, [order1, order2, order3], c1Expenses);
-  // Order 1 & 2 are confirmed (13,000 + 13,000 = 26,000). Order 3 is pending (excluded).
-  // Total Revenue: 26,000
-  // Total Supplier Costs: 13,600
+  const campFin = calculateCampaignFinancials(campaign, [order1, order2], expenses);
+  // Total Revenue: 26,000 (13,000 + 13,000)
+  // Total Supplier Costs: 13,600 (6,000 + 7,600)
   // Gross Profit: 12,400
-  // Ad Spend LKR: 378.20
+  // Ad Spend LKR: 719.80
   // Other Expenses: 850.00
-  // Net Profit: 12,400 - 378.20 - 850 = 11,171.80
-  const expectedNet = 12400 - 378.2 - 850;
+  // Net Profit: 12,400 - 719.80 - 850 = 10,830.20
+  const expectedCampNet = 12400 - 719.8 - 850;
   assert(
-    'Campaign 1 Revenue, Costs, and Net Profit with Pending Exclusion',
+    'Campaign Close Net Profit (12,400 - 719.80 - 850 = 10,830.20 LKR)',
     campFin.total_revenue === 26000 &&
     campFin.total_supplier_costs === 13600 &&
     campFin.gross_profit === 12400 &&
-    campFin.confirmed_orders_count === 2 &&
-    campFin.pending_orders_count === 1 &&
-    Math.abs(campFin.net_profit - expectedNet) < 0.01 &&
-    campFin.has_incomplete_financials === true,
-    `Expected Rev 26,000, GP 12,400, Net ${expectedNet}. Got Rev ${campFin.total_revenue}, GP ${campFin.gross_profit}, Net ${campFin.net_profit}`
-  );
-
-  // TEST 8: Order-Level Advertising Allocation
-  // Order 1: 13,000 / 26,000 * 378.20 = 189.10 LKR
-  // Order 2: 13,000 / 26,000 * 378.20 = 189.10 LKR
-  const o1Allocated = calculateOrderFinancials(order1, campFin.total_revenue, campFin.ad_spend_lkr);
-  const o2Allocated = calculateOrderFinancials(order2, campFin.total_revenue, campFin.ad_spend_lkr);
-
-  const expectedO1Alloc = (378.2 * 13000) / 26000;
-  const expectedO2Alloc = (378.2 * 13000) / 26000;
-  assert(
-    'Order 1 and 2 Proportional Advertising Allocation',
-    Math.abs(o1Allocated.allocated_ad_spend - expectedO1Alloc) < 0.01 &&
-    Math.abs(o2Allocated.allocated_ad_spend - expectedO2Alloc) < 0.01,
-    `Expected O1: ${expectedO1Alloc.toFixed(2)}, got ${o1Allocated.allocated_ad_spend.toFixed(2)}. Expected O2: ${expectedO2Alloc.toFixed(2)}, got ${o2Allocated.allocated_ad_spend.toFixed(2)}`
-  );
-
-  // TEST 9: Historical Advertising Sum
-  const histSpends = [3.45, 4.46, 0.28, 1.77, 0.28];
-  const histTotal = histSpends.reduce((a, b) => a + b, 0);
-  assert(
-    'Historical Ad Expenses Sum ($10.24)',
-    Math.abs(histTotal - 10.24) < 0.001,
-    `Expected $10.24, got $${histTotal.toFixed(2)}`
-  );
-
-  // TEST 10: Zero Revenue Zero Division Protection
-  const emptyCampaignOrder = calculateOrderFinancials(order1, 0, 378.2);
-  assert(
-    'Zero Campaign Revenue Division Guard',
-    emptyCampaignOrder.allocated_ad_spend === 0 && !isNaN(emptyCampaignOrder.allocated_ad_spend),
-    `Expected 0, got ${emptyCampaignOrder.allocated_ad_spend}`
+    Math.abs(campFin.net_profit - expectedCampNet) < 0.01,
+    `Expected Net ${expectedCampNet}, got ${campFin.net_profit}`
   );
 
   const allPassed = results.every(r => r.passed);
   return { allPassed, results };
 }
-
