@@ -250,33 +250,30 @@ export const OrdersPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                statusFilter === 'all'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${statusFilter === 'all'
                   ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               All ({orders.length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('confirmed')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                statusFilter === 'confirmed'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${statusFilter === 'confirmed'
                   ? 'bg-white text-blue-700 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               Confirmed
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('quotation_pending')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                statusFilter === 'quotation_pending'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${statusFilter === 'quotation_pending'
                   ? 'bg-white text-amber-700 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               Pending Quote
             </button>
@@ -323,9 +320,8 @@ export const OrdersPage: React.FC = () => {
                 <React.Fragment key={order.id}>
                   {/* Parent Row */}
                   <tr
-                    className={`hover:bg-neutral-50/80 transition-colors cursor-pointer ${
-                      isExpanded ? 'bg-orange-50/20 font-medium' : ''
-                    }`}
+                    className={`hover:bg-neutral-50/80 transition-colors cursor-pointer ${isExpanded ? 'bg-orange-50/20 font-medium' : ''
+                      }`}
                     onClick={() => toggleExpand(order.id)}
                   >
                     {/* Expand Chevron */}

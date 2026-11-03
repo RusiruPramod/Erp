@@ -33,10 +33,9 @@ export const Sidebar: React.FC = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                    isActive
-                      ? 'bg-orange-50 text-[#FF8C00] font-semibold border-r-2 border-[#FF8C00]'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${isActive
+                    ? 'bg-orange-50 text-[#FF8C00] font-semibold border-r-2 border-[#FF8C00]'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                   }`
                 }
               >

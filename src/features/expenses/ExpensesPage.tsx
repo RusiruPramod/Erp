@@ -210,44 +210,40 @@ export const ExpensesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setCategoryFilter('all')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                categoryFilter === 'all'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'all'
                   ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               All ({expenses.length})
             </button>
             <button
               type="button"
               onClick={() => setCategoryFilter('Packaging')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                categoryFilter === 'Packaging'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Packaging'
                   ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               Packaging
             </button>
             <button
               type="button"
               onClick={() => setCategoryFilter('Delivery')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                categoryFilter === 'Delivery'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Delivery'
                   ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               Delivery
             </button>
             <button
               type="button"
               onClick={() => setCategoryFilter('Reload / Internet Expenses')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                categoryFilter === 'Reload / Internet Expenses'
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Reload / Internet Expenses'
                   ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
                   : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+                }`}
             >
               Internet / Reload
             </button>
