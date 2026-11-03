@@ -381,20 +381,186 @@ export const OrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3.1. Reusable Shell Row Notification / Header Banner */}
-      <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-orange-50/70 border border-orange-200/90 text-xs shadow-2xs">
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 rounded-full bg-[#FF8C00] animate-pulse" />
-          <span className="font-semibold text-neutral-900">
-            ⚡ Quick Entry Shell Row:
-          </span>
-          <span className="text-neutral-600 hidden md:inline">
-            Use the shell row directly above the table to input orders. Press <b>+ Add</b> or hit <b>Enter</b> to update the data below. The row resets for continuous reuse.
-          </span>
+      {/* 3.1. Separate Quick Entry Shell Row */}
+      <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-orange-100 text-[#FF8C00] flex items-center justify-center text-xs font-bold shadow-2xs">
+              ⚡
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+                  Quick Order Entry Shell
+                </h3>
+                <span className="text-[10px] font-bold text-[#FF8C00] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                  Reusable Row
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                Enter order values below and click <b>+ Add</b> or press <b>Enter</b> to instantly update the table below.
+              </p>
+            </div>
+          </div>
+
+          {(quickProjectName ||
+            quickCustomerName ||
+            quickCustomerPrice !== '' ||
+            quickSupplierCost !== '') && (
+            <button
+              type="button"
+              onClick={handleResetQuickRow}
+              className="text-[11px] font-medium text-neutral-500 hover:text-neutral-800 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+              title="Clear row inputs"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Clear Row</span>
+            </button>
+          )}
         </div>
-        <span className="text-[11px] font-semibold text-[#FF8C00] bg-white px-2.5 py-0.5 rounded-md border border-orange-200 shadow-2xs">
-          Reusable Row
-        </span>
+
+        {/* Input Columns Row */}
+        <div className="w-full overflow-x-auto pb-1">
+          <div className="min-w-[1020px] grid grid-cols-12 gap-2.5 items-end bg-neutral-50/80 p-3 rounded-xl border border-neutral-200/90">
+            {/* Project Name */}
+            <div className="col-span-3">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">
+                Project Name *
+              </label>
+              <input
+                ref={quickProjectNameRef}
+                type="text"
+                placeholder="Enter project name..."
+                value={quickProjectName}
+                onChange={e => setQuickProjectName(e.target.value)}
+                onKeyDown={handleQuickKeyDown}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-2.5 py-2 focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none font-medium placeholder:text-neutral-400 shadow-2xs"
+              />
+            </div>
+
+            {/* Customer */}
+            <div className="col-span-2">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">
+                Customer
+              </label>
+              <input
+                type="text"
+                placeholder="Customer name..."
+                value={quickCustomerName}
+                onChange={e => setQuickCustomerName(e.target.value)}
+                onKeyDown={handleQuickKeyDown}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-2.5 py-2 focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none placeholder:text-neutral-400 shadow-2xs"
+              />
+            </div>
+
+            {/* Order Status */}
+            <div className="col-span-2">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1">
+                Order Status
+              </label>
+              <select
+                value={quickOrderStatus}
+                onChange={e => setQuickOrderStatus(e.target.value as OrderStatus)}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-2 py-2 focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none text-neutral-800 shadow-2xs"
+              >
+                <option value="confirmed">Confirmed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="quotation_pending">Quotation Pending</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            {/* Payment Status */}
+            <div className="col-span-1">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1 truncate" title="Payment Status">
+                Payment
+              </label>
+              <select
+                value={quickPaymentStatus}
+                onChange={e => setQuickPaymentStatus(e.target.value as CustomerPaymentStatus)}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-1.5 py-2 focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none text-neutral-800 shadow-2xs"
+              >
+                <option value="unpaid">Unpaid</option>
+                <option value="partially_paid">Partial</option>
+                <option value="fully_paid">Fully Paid</option>
+                <option value="not_invoiced">Not Invoiced</option>
+              </select>
+            </div>
+
+            {/* Customer Price */}
+            <div className="col-span-1">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1 text-right truncate" title="Customer Price">
+                Cust Price
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0.00"
+                value={quickCustomerPrice}
+                onChange={e =>
+                  setQuickCustomerPrice(e.target.value === '' ? '' : parseFloat(e.target.value))
+                }
+                onKeyDown={handleQuickKeyDown}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-2 py-2 text-right font-mono font-bold focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none text-neutral-900 placeholder:text-neutral-400 shadow-2xs"
+              />
+            </div>
+
+            {/* Supplier Cost */}
+            <div className="col-span-1">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1 text-right truncate" title="Supplier Cost">
+                Supp Cost
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0.00"
+                value={quickSupplierCost}
+                onChange={e =>
+                  setQuickSupplierCost(e.target.value === '' ? '' : parseFloat(e.target.value))
+                }
+                onKeyDown={handleQuickKeyDown}
+                className="w-full text-xs rounded-lg border border-neutral-300 bg-white px-2 py-2 text-right font-mono focus:border-[#FF8C00] focus:ring-1 focus:ring-[#FF8C00] outline-none text-neutral-700 placeholder:text-neutral-400 shadow-2xs"
+              />
+            </div>
+
+            {/* Profit */}
+            <div className="col-span-1">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1 text-right truncate">
+                Profit
+              </label>
+              <div className="h-[38px] flex items-center justify-end px-2 text-right font-mono font-extrabold text-xs whitespace-nowrap bg-white rounded-lg border border-neutral-200 shadow-2xs">
+                <span
+                  className={
+                    quickProfit > 0
+                      ? 'text-[#FF8C00]'
+                      : quickProfit < 0
+                      ? 'text-red-500'
+                      : 'text-neutral-500'
+                  }
+                >
+                  {formatLKR(quickProfit)}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="col-span-1">
+              <label className="text-[10px] font-bold text-neutral-600 uppercase block mb-1 text-center truncate">
+                Actions
+              </label>
+              <button
+                type="button"
+                onClick={handleQuickAddOrder}
+                className="w-full h-[38px] inline-flex items-center justify-center gap-1 rounded-lg bg-[#FF8C00] hover:bg-[#e07b00] text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                title="Add Order to table below (or press Enter)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 4. Horizontal Table with Expandable Rows */}
@@ -413,147 +579,6 @@ export const OrdersPage: React.FC = () => {
               <th className="px-3 py-3 text-center">Actions</th>
             </tr>
           </thead>
-
-          {/* Quick Input Shell Row (Reusable for rapid inline order entry) */}
-          <tbody className="bg-orange-50/40 border-b-2 border-orange-300">
-            <tr className="transition-colors hover:bg-orange-50/60">
-              <td className="px-2 py-2.5 text-center">
-                <span
-                  title="Quick Entry Shell (Reuse this row to add multiple orders)"
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[#FF8C00] text-white text-[10px] font-bold shadow-2xs"
-                >
-                  ⚡
-                </span>
-              </td>
-
-              {/* Project Name */}
-              <td className="px-3 py-2.5">
-                <input
-                  ref={quickProjectNameRef}
-                  type="text"
-                  placeholder="Project name *"
-                  value={quickProjectName}
-                  onChange={e => setQuickProjectName(e.target.value)}
-                  onKeyDown={handleQuickKeyDown}
-                  className="w-full min-w-[140px] px-2.5 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent font-medium shadow-2xs"
-                />
-              </td>
-
-              {/* Customer */}
-              <td className="px-3 py-2.5">
-                <input
-                  type="text"
-                  placeholder="Customer name..."
-                  value={quickCustomerName}
-                  onChange={e => setQuickCustomerName(e.target.value)}
-                  onKeyDown={handleQuickKeyDown}
-                  className="w-full min-w-[130px] px-2.5 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
-                />
-              </td>
-
-              {/* Order Status */}
-              <td className="px-3 py-2.5">
-                <select
-                  value={quickOrderStatus}
-                  onChange={e => setQuickOrderStatus(e.target.value as OrderStatus)}
-                  className="w-full min-w-[125px] px-2 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
-                >
-                  <option value="confirmed">Confirmed</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="quotation_pending">Quotation Pending</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </td>
-
-              {/* Payment Status */}
-              <td className="px-3 py-2.5">
-                <select
-                  value={quickPaymentStatus}
-                  onChange={e => setQuickPaymentStatus(e.target.value as CustomerPaymentStatus)}
-                  className="w-full min-w-[125px] px-2 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
-                >
-                  <option value="unpaid">Unpaid</option>
-                  <option value="partially_paid">Partially Paid</option>
-                  <option value="fully_paid">Fully Paid</option>
-                  <option value="not_invoiced">Not Invoiced</option>
-                </select>
-              </td>
-
-              {/* Customer Price */}
-              <td className="px-3 py-2.5">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0.00"
-                  value={quickCustomerPrice}
-                  onChange={e =>
-                    setQuickCustomerPrice(e.target.value === '' ? '' : parseFloat(e.target.value))
-                  }
-                  onKeyDown={handleQuickKeyDown}
-                  className="w-full min-w-[105px] px-2.5 py-1.5 text-xs text-right font-mono font-bold rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent text-neutral-900 shadow-2xs"
-                />
-              </td>
-
-              {/* Supplier Cost */}
-              <td className="px-3 py-2.5">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0.00"
-                  value={quickSupplierCost}
-                  onChange={e =>
-                    setQuickSupplierCost(e.target.value === '' ? '' : parseFloat(e.target.value))
-                  }
-                  onKeyDown={handleQuickKeyDown}
-                  className="w-full min-w-[105px] px-2.5 py-1.5 text-xs text-right font-mono rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent text-neutral-700 shadow-2xs"
-                />
-              </td>
-
-              {/* Profit */}
-              <td className="px-3 py-2.5 text-right font-mono font-extrabold whitespace-nowrap">
-                <span
-                  className={
-                    quickProfit > 0
-                      ? 'text-[#FF8C00]'
-                      : quickProfit < 0
-                      ? 'text-red-500'
-                      : 'text-neutral-500'
-                  }
-                >
-                  {formatLKR(quickProfit)}
-                </span>
-              </td>
-
-              {/* Actions */}
-              <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                <div className="flex items-center justify-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleQuickAddOrder}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#FF8C00] hover:bg-[#e07b00] text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
-                    title="Add Order to table (Enter)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add</span>
-                  </button>
-                  {(quickProjectName ||
-                    quickCustomerName ||
-                    quickCustomerPrice !== '' ||
-                    quickSupplierCost !== '') && (
-                    <button
-                      type="button"
-                      onClick={handleResetQuickRow}
-                      className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-200/60 transition-colors"
-                      title="Clear inputs"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          </tbody>
 
           <tbody className="divide-y divide-neutral-200">
             {filteredOrders.map(order => {
