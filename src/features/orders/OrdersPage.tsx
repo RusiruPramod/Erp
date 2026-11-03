@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ShoppingBag,
   Plus,
@@ -15,7 +15,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useErpData } from '../../context/ErpDataContext';
-import { AdCampaignOrder, OrderStatus } from '../../types';
+import { AdCampaignOrder, OrderStatus, CustomerPaymentStatus } from '../../types';
 import { formatLKR, formatDate } from '../../lib/formatters';
 import { exportToCsv } from '../../lib/csv';
 import {
@@ -60,6 +60,106 @@ export const OrdersPage: React.FC = () => {
   const [inlineMarkup, setInlineMarkup] = useState<number | ''>(1500);
   const [inlineClientPrice, setInlineClientPrice] = useState<number | ''>(3000);
   const [inlinePending, setInlinePending] = useState(false);
+
+  // Quick Input Shell Row state (reusable row right below search filter)
+  const quickProjectNameRef = useRef<HTMLInputElement>(null);
+  const [quickProjectName, setQuickProjectName] = useState('');
+  const [quickCustomerName, setQuickCustomerName] = useState('');
+  const [quickOrderStatus, setQuickOrderStatus] = useState<OrderStatus>('confirmed');
+  const [quickPaymentStatus, setQuickPaymentStatus] = useState<CustomerPaymentStatus>('unpaid');
+  const [quickCustomerPrice, setQuickCustomerPrice] = useState<number | ''>('');
+  const [quickSupplierCost, setQuickSupplierCost] = useState<number | ''>('');
+
+  const quickProfit =
+    (quickCustomerPrice === '' ? 0 : Number(quickCustomerPrice)) -
+    (quickSupplierCost === '' ? 0 : Number(quickSupplierCost));
+
+  const handleQuickAddOrder = () => {
+    if (!quickProjectName.trim()) {
+      toast.error('Please enter a Project Name');
+      quickProjectNameRef.current?.focus();
+      return;
+    }
+
+    const year = new Date().getFullYear();
+    let count = orders.length + 1;
+    let newOrderNumber = `ORD-${year}-${String(count).padStart(3, '0')}`;
+    const existingNumbers = new Set(orders.map(o => o.order_number));
+    while (existingNumbers.has(newOrderNumber)) {
+      count++;
+      newOrderNumber = `ORD-${year}-${String(count).padStart(3, '0')}`;
+    }
+
+    const custPrice = quickCustomerPrice === '' ? 0 : Number(quickCustomerPrice);
+    const suppCost = quickSupplierCost === '' ? 0 : Number(quickSupplierCost);
+    const profit = custPrice - suppCost;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const newOrder: Omit<AdCampaignOrder, 'id' | 'created_at' | 'updated_at'> = {
+      order_number: newOrderNumber,
+      order_name: quickProjectName.trim(),
+      customer_name: quickCustomerName.trim() || null,
+      customer_phone: null,
+      order_date: today,
+      campaign_id: campaigns[0]?.id || null,
+      lead_source: 'Manual Entry',
+      status: quickOrderStatus,
+      payment_status: quickPaymentStatus,
+      customer_paid_amount: quickPaymentStatus === 'fully_paid' ? custPrice : 0,
+      supplier_payment_status: suppCost > 0 ? 'unpaid' : 'fully_paid',
+      supplier_paid_amount: 0,
+      notes: 'Quick added via orders shell row.',
+      services: [
+        {
+          id: `svc-${Date.now()}`,
+          order_id: '',
+          position: 1,
+          service_name: `${quickProjectName.trim()} Service`,
+          supplier_type: 'outsourced',
+          supplier_cost: suppCost,
+          markup: profit,
+          client_price: custPrice,
+          is_financial_pending: false,
+          supplier_payment_status: 'unpaid',
+          customer_payment_status: quickPaymentStatus,
+          service_status: quickOrderStatus === 'completed' ? 'completed' : 'in_progress',
+          notes: null,
+        },
+      ],
+    };
+
+    addOrder(newOrder);
+    toast.success(`Order "${quickProjectName.trim()}" added to table!`);
+
+    // Reset shell row so it can be reused immediately
+    setQuickProjectName('');
+    setQuickCustomerName('');
+    setQuickOrderStatus('confirmed');
+    setQuickPaymentStatus('unpaid');
+    setQuickCustomerPrice('');
+    setQuickSupplierCost('');
+
+    // Re-focus project name for next entry
+    setTimeout(() => {
+      quickProjectNameRef.current?.focus();
+    }, 50);
+  };
+
+  const handleResetQuickRow = () => {
+    setQuickProjectName('');
+    setQuickCustomerName('');
+    setQuickOrderStatus('confirmed');
+    setQuickPaymentStatus('unpaid');
+    setQuickCustomerPrice('');
+    setQuickSupplierCost('');
+  };
+
+  const handleQuickKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleQuickAddOrder();
+    }
+  };
 
   // Toggle order expansion
   const toggleExpand = (orderId: string) => {
@@ -281,6 +381,22 @@ export const OrdersPage: React.FC = () => {
         </div>
       </div>
 
+      {/* 3.1. Reusable Shell Row Notification / Header Banner */}
+      <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-orange-50/70 border border-orange-200/90 text-xs shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 rounded-full bg-[#FF8C00] animate-pulse" />
+          <span className="font-semibold text-neutral-900">
+            ⚡ Quick Entry Shell Row:
+          </span>
+          <span className="text-neutral-600 hidden md:inline">
+            Use the shell row directly above the table to input orders. Press <b>+ Add</b> or hit <b>Enter</b> to update the data below. The row resets for continuous reuse.
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-[#FF8C00] bg-white px-2.5 py-0.5 rounded-md border border-orange-200 shadow-2xs">
+          Reusable Row
+        </span>
+      </div>
+
       {/* 4. Horizontal Table with Expandable Rows */}
       <div className="w-full overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-2xs">
         <table className="w-full text-left text-xs border-collapse">
@@ -297,6 +413,148 @@ export const OrdersPage: React.FC = () => {
               <th className="px-3 py-3 text-center">Actions</th>
             </tr>
           </thead>
+
+          {/* Quick Input Shell Row (Reusable for rapid inline order entry) */}
+          <tbody className="bg-orange-50/40 border-b-2 border-orange-300">
+            <tr className="transition-colors hover:bg-orange-50/60">
+              <td className="px-2 py-2.5 text-center">
+                <span
+                  title="Quick Entry Shell (Reuse this row to add multiple orders)"
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[#FF8C00] text-white text-[10px] font-bold shadow-2xs"
+                >
+                  ⚡
+                </span>
+              </td>
+
+              {/* Project Name */}
+              <td className="px-3 py-2.5">
+                <input
+                  ref={quickProjectNameRef}
+                  type="text"
+                  placeholder="Project name *"
+                  value={quickProjectName}
+                  onChange={e => setQuickProjectName(e.target.value)}
+                  onKeyDown={handleQuickKeyDown}
+                  className="w-full min-w-[140px] px-2.5 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent font-medium shadow-2xs"
+                />
+              </td>
+
+              {/* Customer */}
+              <td className="px-3 py-2.5">
+                <input
+                  type="text"
+                  placeholder="Customer name..."
+                  value={quickCustomerName}
+                  onChange={e => setQuickCustomerName(e.target.value)}
+                  onKeyDown={handleQuickKeyDown}
+                  className="w-full min-w-[130px] px-2.5 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
+                />
+              </td>
+
+              {/* Order Status */}
+              <td className="px-3 py-2.5">
+                <select
+                  value={quickOrderStatus}
+                  onChange={e => setQuickOrderStatus(e.target.value as OrderStatus)}
+                  className="w-full min-w-[125px] px-2 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
+                >
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="quotation_pending">Quotation Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </td>
+
+              {/* Payment Status */}
+              <td className="px-3 py-2.5">
+                <select
+                  value={quickPaymentStatus}
+                  onChange={e => setQuickPaymentStatus(e.target.value as CustomerPaymentStatus)}
+                  className="w-full min-w-[125px] px-2 py-1.5 text-xs rounded-lg border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent shadow-2xs"
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partially_paid">Partially Paid</option>
+                  <option value="fully_paid">Fully Paid</option>
+                  <option value="not_invoiced">Not Invoiced</option>
+                </select>
+              </td>
+
+              {/* Customer Price */}
+              <td className="px-3 py-2.5">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0.00"
+                  value={quickCustomerPrice}
+                  onChange={e =>
+                    setQuickCustomerPrice(e.target.value === '' ? '' : parseFloat(e.target.value))
+                  }
+                  onKeyDown={handleQuickKeyDown}
+                  className="w-full min-w-[105px] px-2.5 py-1.5 text-xs text-right font-mono font-bold rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent text-neutral-900 shadow-2xs"
+                />
+              </td>
+
+              {/* Supplier Cost */}
+              <td className="px-3 py-2.5">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0.00"
+                  value={quickSupplierCost}
+                  onChange={e =>
+                    setQuickSupplierCost(e.target.value === '' ? '' : parseFloat(e.target.value))
+                  }
+                  onKeyDown={handleQuickKeyDown}
+                  className="w-full min-w-[105px] px-2.5 py-1.5 text-xs text-right font-mono rounded-lg border border-neutral-300 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-transparent text-neutral-700 shadow-2xs"
+                />
+              </td>
+
+              {/* Profit */}
+              <td className="px-3 py-2.5 text-right font-mono font-extrabold whitespace-nowrap">
+                <span
+                  className={
+                    quickProfit > 0
+                      ? 'text-[#FF8C00]'
+                      : quickProfit < 0
+                      ? 'text-red-500'
+                      : 'text-neutral-500'
+                  }
+                >
+                  {formatLKR(quickProfit)}
+                </span>
+              </td>
+
+              {/* Actions */}
+              <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                <div className="flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleQuickAddOrder}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#FF8C00] hover:bg-[#e07b00] text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                    title="Add Order to table (Enter)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
+                  </button>
+                  {(quickProjectName ||
+                    quickCustomerName ||
+                    quickCustomerPrice !== '' ||
+                    quickSupplierCost !== '') && (
+                    <button
+                      type="button"
+                      onClick={handleResetQuickRow}
+                      className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-200/60 transition-colors"
+                      title="Clear inputs"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+
           <tbody className="divide-y divide-neutral-200">
             {filteredOrders.map(order => {
               const isExpanded = expandedOrderIds.has(order.id);
