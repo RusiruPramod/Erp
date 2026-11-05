@@ -1,16 +1,14 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   Plus,
   Search,
   Download,
-  AlertTriangle,
   Edit2,
   Trash2,
-  ChevronDown,
-  ChevronRight,
-  Layers,
   RotateCcw,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -21,21 +19,19 @@ import { exportToCsv } from '../../lib/csv';
 import {
   OrderStatusBadge,
   CustomerPaymentBadge,
-  SupplierPaymentBadge,
   IncompleteFinancialBadge,
 } from '../campaigns/components/Badges';
 import { OrderModal } from '../campaigns/OrderModal';
 import { toast } from 'sonner';
 
 export const OrdersPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     orders,
     campaigns,
     addOrder,
     updateOrder,
     deleteOrder,
-    addServiceToOrder,
-    deleteServiceFromOrder,
     resetToDefaultSampleData,
   } = useErpData();
 
@@ -43,23 +39,10 @@ export const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Expanded row state (default expand all 3 sample orders so user immediately sees service details!)
-  const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(
-    new Set(['ord-001', 'ord-002', 'ord-003'])
-  );
-
   // Modal states
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<AdCampaignOrder | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<AdCampaignOrder | null>(null);
-
-  // Inline "Add Service" state for expanded row
-  const [addingServiceToOrderId, setAddingServiceToOrderId] = useState<string | null>(null);
-  const [inlineServiceName, setInlineServiceName] = useState('Assembly & Testing');
-  const [inlineSupplierCost, setInlineSupplierCost] = useState<number | ''>(1500);
-  const [inlineMarkup, setInlineMarkup] = useState<number | ''>(1500);
-  const [inlineClientPrice, setInlineClientPrice] = useState<number | ''>(3000);
-  const [inlinePending, setInlinePending] = useState(false);
 
   // Quick Input Shell Row state (reusable row right below search filter)
   const quickProjectNameRef = useRef<HTMLInputElement>(null);
@@ -159,19 +142,6 @@ export const OrdersPage: React.FC = () => {
       e.preventDefault();
       handleQuickAddOrder();
     }
-  };
-
-  // Toggle order expansion
-  const toggleExpand = (orderId: string) => {
-    setExpandedOrderIds(prev => {
-      const next = new Set(prev);
-      if (next.has(orderId)) {
-        next.delete(orderId);
-      } else {
-        next.add(orderId);
-      }
-      return next;
-    });
   };
 
   // Filtered orders
@@ -581,44 +551,48 @@ export const OrdersPage: React.FC = () => {
           </thead>
 
           <tbody className="divide-y divide-neutral-200">
-            {filteredOrders.map(order => {
-              const isExpanded = expandedOrderIds.has(order.id);
+            {filteredOrders.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-8 text-center text-neutral-400">
+                  No orders found matching your search.
+                </td>
+              </tr>
+            ) : (
+              filteredOrders.map(order => {
+                let confirmedCustomerPrice = 0;
+                let confirmedSupplierCost = 0;
+                let hasPendingServices = false;
 
-              let confirmedCustomerPrice = 0;
-              let confirmedSupplierCost = 0;
-              let hasPendingServices = false;
+                (order.services || []).forEach(svc => {
+                  if (
+                    svc.is_financial_pending ||
+                    svc.client_price === null ||
+                    svc.supplier_cost === null
+                  ) {
+                    hasPendingServices = true;
+                  } else {
+                    confirmedCustomerPrice += Number(svc.client_price) || 0;
+                    confirmedSupplierCost += Number(svc.supplier_cost) || 0;
+                  }
+                });
 
-              (order.services || []).forEach(svc => {
-                if (svc.is_financial_pending || svc.client_price === null || svc.supplier_cost === null) {
-                  hasPendingServices = true;
-                } else {
-                  confirmedCustomerPrice += Number(svc.client_price) || 0;
-                  confirmedSupplierCost += Number(svc.supplier_cost) || 0;
-                }
-              });
+                const confirmedProfit = confirmedCustomerPrice - confirmedSupplierCost;
 
-              const confirmedProfit = confirmedCustomerPrice - confirmedSupplierCost;
-
-              return (
-                <React.Fragment key={order.id}>
-                  {/* Parent Row */}
+                return (
                   <tr
-                    className={`hover:bg-neutral-50/80 transition-colors cursor-pointer ${isExpanded ? 'bg-orange-50/20 font-medium' : ''
-                      }`}
-                    onClick={() => toggleExpand(order.id)}
+                    key={order.id}
+                    onClick={() => navigate(`/orders/${order.id}`)}
+                    className="hover:bg-orange-50/40 transition-colors cursor-pointer group"
+                    title={`Click to view ${order.order_name} in detail page`}
                   >
-                    {/* Expand Chevron */}
-                    <td className="px-2 py-3.5 text-center text-neutral-400">
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-[#FF8C00]" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4" />
-                      )}
+                    {/* View Icon Column */}
+                    <td className="px-2 py-3.5 text-center text-neutral-400 group-hover:text-[#FF8C00]">
+                      <ExternalLink className="w-3.5 h-3.5 mx-auto" />
                     </td>
 
                     {/* Project Name */}
                     <td className="px-3 py-3.5">
-                      <div className="font-semibold text-neutral-900 text-xs flex items-center gap-1.5">
+                      <div className="font-semibold text-neutral-900 text-xs flex items-center gap-1.5 group-hover:text-[#FF8C00] transition-colors">
                         <span>{order.order_name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -641,7 +615,9 @@ export const OrdersPage: React.FC = () => {
                     <td className="px-3 py-3.5 whitespace-nowrap text-neutral-700">
                       <div>{order.customer_name || 'Direct Client'}</div>
                       {order.customer_phone && (
-                        <span className="text-[10px] text-neutral-400 font-mono">{order.customer_phone}</span>
+                        <span className="text-[10px] text-neutral-400 font-mono">
+                          {order.customer_phone}
+                        </span>
                       )}
                     </td>
 
@@ -674,8 +650,12 @@ export const OrdersPage: React.FC = () => {
                     <td className="px-3 py-3.5 text-right font-mono font-bold text-neutral-900 whitespace-nowrap">
                       {hasPendingServices ? (
                         <div>
-                          <span className="text-neutral-900">{formatLKR(confirmedCustomerPrice)}</span>
-                          <span className="text-[10px] text-amber-600 block font-normal">(+ Pending)</span>
+                          <span className="text-neutral-900">
+                            {formatLKR(confirmedCustomerPrice)}
+                          </span>
+                          <span className="text-[10px] text-amber-600 block font-normal">
+                            (+ Pending)
+                          </span>
                         </div>
                       ) : (
                         formatLKR(confirmedCustomerPrice)
@@ -687,7 +667,9 @@ export const OrdersPage: React.FC = () => {
                       {hasPendingServices ? (
                         <div>
                           <span>{formatLKR(confirmedSupplierCost)}</span>
-                          <span className="text-[10px] text-amber-600 block font-normal">(+ Pending)</span>
+                          <span className="text-[10px] text-amber-600 block font-normal">
+                            (+ Pending)
+                          </span>
                         </div>
                       ) : (
                         formatLKR(confirmedSupplierCost)
@@ -699,7 +681,9 @@ export const OrdersPage: React.FC = () => {
                       {hasPendingServices ? (
                         <div>
                           <span className="text-[#FF8C00]">{formatLKR(confirmedProfit)}</span>
-                          <span className="text-[10px] text-amber-600 block font-normal">(Confirmed)</span>
+                          <span className="text-[10px] text-amber-600 block font-normal">
+                            (Confirmed)
+                          </span>
                         </div>
                       ) : (
                         <span className="text-[#FF8C00]">{formatLKR(confirmedProfit)}</span>
@@ -734,248 +718,9 @@ export const OrdersPage: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-
-                  {/* Expanded Row: Service Line Items Breakdown */}
-                  {isExpanded && (
-                    <tr className="bg-neutral-50/70">
-                      <td colSpan={9} className="p-4 md:p-5 border-b border-neutral-200">
-                        <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-neutral-200">
-                            <div className="flex items-center gap-2">
-                              <Layers className="w-4 h-4 text-[#FF8C00]" />
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
-                                Service Details for {order.order_name}
-                              </h4>
-                            </div>
-
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              leftIcon={<Plus className="w-3.5 h-3.5" />}
-                              onClick={() => setAddingServiceToOrderId(order.id)}
-                            >
-                              + Add Service
-                            </Button>
-                          </div>
-
-                          {/* Services Breakdown Table */}
-                          <div className="w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-                            <table className="w-full text-left text-xs">
-                              <thead>
-                                <tr className="bg-neutral-100/90 text-neutral-600 uppercase font-bold text-[10px] border-b border-neutral-200">
-                                  <th className="py-2 px-3">Service Name</th>
-                                  <th className="py-2 px-3">Supplier Type</th>
-                                  <th className="py-2 px-3 text-right">Supplier Cost</th>
-                                  <th className="py-2 px-3 text-right">Profit / Margin</th>
-                                  <th className="py-2 px-3 text-right font-bold">Customer Price</th>
-                                  <th className="py-2 px-3 text-center">Status</th>
-                                  <th className="py-2 px-3 text-center">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-neutral-100">
-                                {(order.services || []).map((service, sIdx) => (
-                                  <tr key={service.id} className="hover:bg-neutral-50/60">
-                                    <td className="py-2.5 px-3 font-semibold text-neutral-900">
-                                      {service.service_name}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-neutral-600 capitalize">
-                                      {service.supplier_type === 'in_house' ? 'In-house' : 'Outsourced'}
-                                    </td>
-
-                                    {/* Supplier Cost */}
-                                    <td className="py-2.5 px-3 text-right font-mono">
-                                      {service.is_financial_pending || service.supplier_cost === null ? (
-                                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-bold border border-amber-200 text-[10px]">
-                                          Pending
-                                        </span>
-                                      ) : (
-                                        formatLKR(service.supplier_cost)
-                                      )}
-                                    </td>
-
-                                    {/* Profit */}
-                                    <td className="py-2.5 px-3 text-right font-mono text-[#FF8C00] font-semibold">
-                                      {service.is_financial_pending || service.markup === null ? (
-                                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-bold border border-amber-200 text-[10px]">
-                                          Not Confirmed
-                                        </span>
-                                      ) : (
-                                        formatLKR(service.markup)
-                                      )}
-                                    </td>
-
-                                    {/* Customer Price */}
-                                    <td className="py-2.5 px-3 text-right font-mono font-bold text-neutral-900">
-                                      {service.is_financial_pending || service.client_price === null ? (
-                                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-bold border border-amber-200 text-[10px]">
-                                          Pending
-                                        </span>
-                                      ) : (
-                                        formatLKR(service.client_price)
-                                      )}
-                                    </td>
-
-                                    {/* Status */}
-                                    <td className="py-2.5 px-3 text-center">
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 capitalize">
-                                        {service.service_status || 'Active'}
-                                      </span>
-                                    </td>
-
-                                    {/* Action */}
-                                    <td className="py-2.5 px-3 text-center">
-                                      {(order.services || []).length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => deleteServiceFromOrder(order.id, service.id)}
-                                          className="text-neutral-400 hover:text-red-600 p-1 rounded"
-                                          title="Delete service item"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Inline Add Service Form */}
-                          {addingServiceToOrderId === order.id && (
-                            <div className="p-3.5 bg-white rounded-xl border border-orange-200 shadow-2xs space-y-3">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-neutral-900 flex items-center gap-1.5">
-                                  <Plus className="w-3.5 h-3.5 text-[#FF8C00]" /> Add New Service to {order.order_name}
-                                </span>
-                                <label className="flex items-center gap-1 text-[11px] text-neutral-600 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={inlinePending}
-                                    onChange={e => setInlinePending(e.target.checked)}
-                                    className="rounded text-[#FF8C00]"
-                                  />
-                                  <span>Pending Cost Confirmation</span>
-                                </label>
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                                <div>
-                                  <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
-                                    Service Name *
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. PCB Printing"
-                                    className="w-full text-xs rounded border border-neutral-200 p-2"
-                                    value={inlineServiceName}
-                                    onChange={e => setInlineServiceName(e.target.value)}
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
-                                    Supplier Cost (LKR)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    placeholder={inlinePending ? 'Pending' : '0.00'}
-                                    disabled={inlinePending}
-                                    className="w-full text-xs rounded border border-neutral-200 p-2 font-mono disabled:bg-neutral-100"
-                                    value={inlinePending ? '' : inlineSupplierCost}
-                                    onChange={e => {
-                                      const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                      setInlineSupplierCost(val);
-                                      if (typeof val === 'number') {
-                                        const m = inlineMarkup === '' ? 0 : Number(inlineMarkup);
-                                        setInlineClientPrice(val + m);
-                                      }
-                                    }}
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
-                                    Profit / Margin (LKR)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    placeholder={inlinePending ? 'Pending' : '0.00'}
-                                    disabled={inlinePending}
-                                    className="w-full text-xs rounded border border-neutral-200 p-2 font-mono disabled:bg-neutral-100"
-                                    value={inlinePending ? '' : inlineMarkup}
-                                    onChange={e => {
-                                      const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                      setInlineMarkup(val);
-                                      if (typeof val === 'number') {
-                                        const c = inlineSupplierCost === '' ? 0 : Number(inlineSupplierCost);
-                                        setInlineClientPrice(c + val);
-                                      }
-                                    }}
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
-                                    Customer Price (LKR)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    placeholder={inlinePending ? 'Pending' : '0.00'}
-                                    disabled={inlinePending}
-                                    className="w-full text-xs rounded border border-neutral-200 p-2 font-mono font-bold text-neutral-900 disabled:bg-neutral-100"
-                                    value={inlinePending ? '' : inlineClientPrice}
-                                    onChange={e => setInlineClientPrice(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex justify-end gap-2 pt-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  type="button"
-                                  onClick={() => setAddingServiceToOrderId(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  type="button"
-                                  onClick={() => {
-                                    if (!inlineServiceName.trim()) {
-                                      toast.error('Please enter service name');
-                                      return;
-                                    }
-                                    addServiceToOrder(order.id, {
-                                      service_name: inlineServiceName.trim(),
-                                      supplier_type: 'outsourced',
-                                      supplier_cost: inlinePending || inlineSupplierCost === '' ? null : Number(inlineSupplierCost),
-                                      markup: inlinePending || inlineMarkup === '' ? null : Number(inlineMarkup),
-                                      client_price: inlinePending || inlineClientPrice === '' ? null : Number(inlineClientPrice),
-                                      is_financial_pending: inlinePending,
-                                      supplier_payment_status: 'unpaid',
-                                      customer_payment_status: 'unpaid',
-                                      service_status: 'pending',
-                                      notes: null,
-                                    });
-                                    setAddingServiceToOrderId(null);
-                                    toast.success('Service added to order');
-                                  }}
-                                >
-                                  Save Service Item
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

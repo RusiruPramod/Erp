@@ -34,6 +34,11 @@ const OrdersPage = lazy(() =>
     default: m.OrdersPage,
   }))
 );
+const OrderDetailPage = lazy(() =>
+  import('../features/orders/OrderDetailPage').then(m => ({
+    default: m.OrderDetailPage,
+  }))
+);
 const ProjectsListPage = lazy(() =>
   import('../features/projects/ProjectsListPage').then(m => ({
     default: m.ProjectsListPage,
@@ -157,6 +162,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'orders/:orderId',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <OrderDetailPage />
           </Suspense>
         ),
       },
