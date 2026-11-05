@@ -217,22 +217,22 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Card 6: Net Profit */}
-        <div className="bg-neutral-900 border border-neutral-800 text-white rounded-xl p-4 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-2xs hover:border-neutral-300 transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
                 Net Profit
               </span>
               <DollarSign className="w-3.5 h-3.5 text-[#FF8C00]" />
             </div>
-            <div className="font-mono font-extrabold text-lg text-emerald-400 truncate">
+            <div className="font-mono font-extrabold text-lg text-emerald-600 truncate">
               {formatLKR(netProfit)}
             </div>
-            <div className="text-[11px] text-neutral-300 mt-0.5">
+            <div className="text-[11px] text-neutral-500 mt-0.5">
               Bottom Line Return
             </div>
           </div>
-          <p className="text-[10px] text-neutral-400 mt-2 border-t border-neutral-800 pt-1.5">
+          <p className="text-[10px] text-neutral-400 mt-2 border-t border-neutral-100 pt-1.5">
             Expected Profit − Ads − Expenses
           </p>
         </div>
