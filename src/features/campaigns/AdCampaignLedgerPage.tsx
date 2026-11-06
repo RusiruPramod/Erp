@@ -109,19 +109,17 @@ export const AdCampaignLedgerPage: React.FC = () => {
     <div className="h-full w-full bg-white overflow-y-auto p-4 md:p-8 space-y-6">
       {/* 1. Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 text-[#FF8C00] flex items-center justify-center shadow-2xs">
-              <Megaphone className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900">
-                Ad Campaigns Management
-              </h1>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Track ad spend in USD/LKR, campaign dates, linked customer orders, and profit returns.
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-[#FF8C00] flex items-center justify-center shadow-2xs">
+            <Megaphone className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900">
+              Ad Campaigns
+            </h1>
+            <p className="text-xs text-neutral-500">
+              Marketing campaigns & ad spend tracking
+            </p>
           </div>
         </div>
 
@@ -132,10 +130,10 @@ export const AdCampaignLedgerPage: React.FC = () => {
             leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             onClick={() => {
               resetToDefaultSampleData();
-              toast.success('Campaigns reset to sample data');
+              toast.success('Reset sample campaigns');
             }}
           >
-            Reset Sample Data
+            Reset
           </Button>
 
           <Button
@@ -145,7 +143,7 @@ export const AdCampaignLedgerPage: React.FC = () => {
             onClick={handleExportCsv}
             disabled={filteredCampaigns.length === 0}
           >
-            Export CSV
+            Export
           </Button>
 
           <Button
@@ -165,59 +163,50 @@ export const AdCampaignLedgerPage: React.FC = () => {
       {/* 2. Top Summary KPI Cards for the 3 Campaigns */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Historical Ad Spend Card */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Historical Ad Spend (Archived)
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Historical (Archived)
             </span>
             <History className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="font-mono font-bold text-xl text-neutral-900 mt-1">
-            $10.24 <span className="text-xs text-neutral-500 font-normal">USD</span>
+          <div className="font-mono font-bold text-2xl text-neutral-900 mt-1">
+            $10.24 <span className="text-xs text-neutral-400 font-normal">USD</span>
           </div>
-          <p className="text-xs font-mono font-semibold text-[#FF8C00] mt-0.5">
+          <p className="text-xs font-mono text-[#FF8C00] mt-1">
             ≈ {formatLKR(10.24 * exchangeRate)}
-          </p>
-          <p className="text-[10px] text-neutral-400 mt-1.5 border-t border-neutral-100 pt-1.5">
-            Consolidated 5 entries: $3.45 + $4.46 + $0.28 + $1.77 + $0.28
           </p>
         </div>
 
         {/* Current Campaign 1 Card */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Current Campaign 1 (Running)
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Campaign 1 (Running)
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="font-mono font-bold text-xl text-emerald-700 mt-1">
-            $1.24 <span className="text-xs text-neutral-500 font-normal">USD</span>
+          <div className="font-mono font-bold text-2xl text-neutral-900 mt-1">
+            $1.24 <span className="text-xs text-neutral-400 font-normal">USD</span>
           </div>
-          <p className="text-xs font-mono font-semibold text-[#FF8C00] mt-0.5">
+          <p className="text-xs font-mono text-[#FF8C00] mt-1">
             ≈ {formatLKR(1.24 * exchangeRate)}
-          </p>
-          <p className="text-[10px] text-neutral-400 mt-1.5 border-t border-neutral-100 pt-1.5">
-            Smart Dispensing Drug Timer Medicine
           </p>
         </div>
 
         {/* Current Campaign 2 Card */}
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Current Campaign 2 (Running)
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Campaign 2 (Running)
             </span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="font-mono font-bold text-xl text-emerald-700 mt-1">
-            $1.87 <span className="text-xs text-neutral-500 font-normal">USD</span>
+          <div className="font-mono font-bold text-2xl text-neutral-900 mt-1">
+            $1.87 <span className="text-xs text-neutral-400 font-normal">USD</span>
           </div>
-          <p className="text-xs font-mono font-semibold text-[#FF8C00] mt-0.5">
+          <p className="text-xs font-mono text-[#FF8C00] mt-1">
             ≈ {formatLKR(1.87 * exchangeRate)}
-          </p>
-          <p className="text-[10px] text-neutral-400 mt-1.5 border-t border-neutral-100 pt-1.5">
-            Safety Helmet & Panel Hardware Inquiries
           </p>
         </div>
       </div>

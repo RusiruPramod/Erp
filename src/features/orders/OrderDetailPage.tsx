@@ -266,44 +266,40 @@ export const OrderDetailPage: React.FC = () => {
 
       {/* 3. Financial KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
-            Customer Price (Revenue)
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
+            Revenue
           </span>
-          <div className="text-base font-bold font-mono text-neutral-900 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-900 mt-1">
             {formatLKR(totalRevenue)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">Total bill to customer</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
-            Supplier Outsourcing Cost
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
+            Supplier Costs
           </span>
-          <div className="text-base font-bold font-mono text-neutral-700 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-700 mt-1">
             {formatLKR(totalSupplierCosts)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">PCB printing, fabrication</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs bg-orange-50/30">
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
-            Net Gross Profit
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
+            Gross Profit
           </span>
-          <div className="text-base font-bold font-mono text-[#FF8C00] mt-1">
+          <div className="text-xl md:text-2xl font-extrabold font-mono text-[#FF8C00] mt-1">
             {formatLKR(totalGrossProfit)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">Customer Price − Supplier Cost</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
             Profit Margin
           </span>
-          <div className="text-base font-bold font-mono text-emerald-600 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-emerald-600 mt-1">
             {profitMarginPercent.toFixed(1)}%
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">Gross margin on this project</p>
         </div>
       </div>
 
@@ -311,13 +307,9 @@ export const OrderDetailPage: React.FC = () => {
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-[#FF8C00]" />
-            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-              Project Services & Line Items Table
+            <h3 className="text-sm font-bold text-neutral-900">
+              Services & Line Items ({(order.services || []).length})
             </h3>
-            <span className="text-xs text-neutral-400">
-              ({(order.services || []).length} items)
-            </span>
           </div>
 
           <Button

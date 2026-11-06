@@ -4,6 +4,7 @@ import { AppLayout } from './layout/AppLayout';
 import { RequireAuth } from './guards/RequireAuth';
 import { RequireAdmin } from './guards/RequireAdmin';
 import { Skeleton } from '../components/ui/Skeleton';
+import { RouteErrorElement } from '../components/ui/RouteErrorElement';
 
 // Code-split route components for fast initial load
 const LoginPage = lazy(() =>
@@ -123,6 +124,7 @@ export const router = createBrowserRouter([
   // Protected Routes
   {
     path: '/',
+    errorElement: <RouteErrorElement />,
     element: (
       <RequireAuth>
         <AppLayout />

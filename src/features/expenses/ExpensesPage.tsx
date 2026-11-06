@@ -84,19 +84,17 @@ export const ExpensesPage: React.FC = () => {
     <div className="h-full w-full bg-white overflow-y-auto p-4 md:p-8 space-y-6">
       {/* 1. Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 text-[#FF8C00] flex items-center justify-center shadow-2xs">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900">
-                Business Expenses
-              </h1>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Track delivery, packaging, and internet/reload operational costs.
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-[#FF8C00] flex items-center justify-center shadow-2xs">
+            <Receipt className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900">
+              Expenses
+            </h1>
+            <p className="text-xs text-neutral-500">
+              Operational overheads & general expenses
+            </p>
           </div>
         </div>
 
@@ -107,10 +105,10 @@ export const ExpensesPage: React.FC = () => {
             leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             onClick={() => {
               resetToDefaultSampleData();
-              toast.success('Expenses reset to sample data');
+              toast.success('Reset sample expenses');
             }}
           >
-            Reset Sample Data
+            Reset
           </Button>
 
           <Button
@@ -120,7 +118,7 @@ export const ExpensesPage: React.FC = () => {
             onClick={handleExportCsv}
             disabled={filteredExpenses.length === 0}
           >
-            Export CSV
+            Export
           </Button>
 
           <Button
@@ -137,58 +135,54 @@ export const ExpensesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Top Summary KPI Cards (Delivery, Packaging, Internet/Reload, Total) */}
+      {/* 2. Top Summary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
               Total Expenses
             </span>
-            <Receipt className="w-3.5 h-3.5 text-neutral-600" />
+            <Receipt className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-900 mt-1">
             {formatLKR(totalAmount)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">All recorded overheads</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Packaging Boxes
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Packaging
             </span>
-            <Package className="w-3.5 h-3.5 text-orange-600" />
+            <Package className="w-4 h-4 text-orange-500" />
           </div>
-          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-900 mt-1">
             {formatLKR(packagingTotal)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">Anti-static boxes & bubble wrap</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Delivery / Courier
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Delivery
             </span>
-            <Truck className="w-3.5 h-3.5 text-blue-600" />
+            <Truck className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-900 mt-1">
             {formatLKR(deliveryTotal)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">Customer prototype dispatch</p>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-xl p-3.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">
               Internet & Reload
             </span>
-            <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+            <Wifi className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-lg font-bold font-mono text-neutral-900 mt-1">
+          <div className="text-xl md:text-2xl font-bold font-mono text-neutral-900 mt-1">
             {formatLKR(reloadTotal)}
           </div>
-          <p className="text-[10px] text-neutral-400 mt-1">WhatsApp & customer support</p>
         </div>
       </div>
 
@@ -211,8 +205,8 @@ export const ExpensesPage: React.FC = () => {
               type="button"
               onClick={() => setCategoryFilter('all')}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'all'
-                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                : 'text-neutral-600 hover:text-neutral-900'
                 }`}
             >
               All ({expenses.length})
@@ -221,8 +215,8 @@ export const ExpensesPage: React.FC = () => {
               type="button"
               onClick={() => setCategoryFilter('Packaging')}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Packaging'
-                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                : 'text-neutral-600 hover:text-neutral-900'
                 }`}
             >
               Packaging
@@ -231,8 +225,8 @@ export const ExpensesPage: React.FC = () => {
               type="button"
               onClick={() => setCategoryFilter('Delivery')}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Delivery'
-                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                : 'text-neutral-600 hover:text-neutral-900'
                 }`}
             >
               Delivery
@@ -241,8 +235,8 @@ export const ExpensesPage: React.FC = () => {
               type="button"
               onClick={() => setCategoryFilter('Reload / Internet Expenses')}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${categoryFilter === 'Reload / Internet Expenses'
-                  ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                : 'text-neutral-600 hover:text-neutral-900'
                 }`}
             >
               Internet / Reload
