@@ -3,18 +3,16 @@ import { Link } from 'react-router-dom';
 import {
   TrendingUp,
   DollarSign,
-  Receipt,
   Megaphone,
   ShoppingBag,
   ArrowRight,
-  CheckCircle2,
-  Clock,
   Layers,
   RotateCcw,
+  Receipt,
 } from 'lucide-react';
 import { useErpData } from '../../context/ErpDataContext';
-import { formatLKR, formatDate } from '../../lib/formatters';
-import { CampaignStatusBadge, OrderStatusBadge, CustomerPaymentBadge } from '../campaigns/components/Badges';
+import { formatLKR } from '../../lib/formatters';
+import { OrderStatusBadge } from '../campaigns/components/Badges';
 
 export const DashboardPage: React.FC = () => {
   const { orders, campaigns, expenses, exchangeRate, resetToDefaultSampleData } = useErpData();
@@ -106,29 +104,29 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Key Metrics - 4 Clean, Focused Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
+      {/* 2. Key Metrics - 5 Cards (Net Profit, Supplier Costs, Revenue, Ads, Overheads) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        {/* 1. Net Profit */}
         <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs hover:border-neutral-300 transition-all">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Revenue</span>
-            <ShoppingBag className="w-4 h-4 text-neutral-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Net Profit</span>
+            <DollarSign className="w-4 h-4 text-[#FF8C00]" />
           </div>
-          <div className="font-mono font-bold text-xl md:text-2xl text-neutral-900 truncate">
-            {formatLKR(totalConfirmedCustomerPrice)}
+          <div className="font-mono font-extrabold text-lg lg:text-xl xl:text-2xl text-emerald-600 truncate">
+            {formatLKR(netProfit)}
           </div>
           <span className="text-xs text-neutral-400 mt-1 block">
-            {orders.length} total orders
+            Final bottom line
           </span>
         </div>
 
-        {/* Supplier Costs */}
+        {/* 2. Supplier Costs */}
         <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs hover:border-neutral-300 transition-all">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Supplier Costs</span>
             <Layers className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="font-mono font-bold text-xl md:text-2xl text-neutral-700 truncate">
+          <div className="font-mono font-bold text-lg lg:text-xl xl:text-2xl text-neutral-700 truncate">
             {formatLKR(totalSupplierCost)}
           </div>
           <span className="text-xs text-neutral-400 mt-1 block">
@@ -136,31 +134,45 @@ export const DashboardPage: React.FC = () => {
           </span>
         </div>
 
-        {/* Ad Spend & Overhead */}
+        {/* 3. Revenue */}
         <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs hover:border-neutral-300 transition-all">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Ads & Overheads</span>
-            <Megaphone className="w-4 h-4 text-neutral-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Revenue</span>
+            <ShoppingBag className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="font-mono font-bold text-xl md:text-2xl text-neutral-700 truncate">
-            {formatLKR(totalAdSpendLkr + totalOtherExpensesLkr)}
+          <div className="font-mono font-bold text-lg lg:text-xl xl:text-2xl text-neutral-900 truncate">
+            {formatLKR(totalConfirmedCustomerPrice)}
           </div>
           <span className="text-xs text-neutral-400 mt-1 block">
-            Marketing & operations
+            {orders.length} total orders
           </span>
         </div>
 
-        {/* Net Profit */}
+        {/* 4. Ads */}
         <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs hover:border-neutral-300 transition-all">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Net Profit</span>
-            <DollarSign className="w-4 h-4 text-[#FF8C00]" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Ads</span>
+            <Megaphone className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="font-mono font-extrabold text-xl md:text-2xl text-emerald-600 truncate">
-            {formatLKR(netProfit)}
+          <div className="font-mono font-bold text-lg lg:text-xl xl:text-2xl text-neutral-700 truncate">
+            {formatLKR(totalAdSpendLkr)}
           </div>
           <span className="text-xs text-neutral-400 mt-1 block">
-            Final bottom line
+            ${totalAdSpendUsd.toFixed(2)} USD spend
+          </span>
+        </div>
+
+        {/* 5. Overheads */}
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs hover:border-neutral-300 transition-all col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between text-neutral-500 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">Overheads</span>
+            <Receipt className="w-4 h-4 text-neutral-400" />
+          </div>
+          <div className="font-mono font-bold text-lg lg:text-xl xl:text-2xl text-neutral-700 truncate">
+            {formatLKR(totalOtherExpensesLkr)}
+          </div>
+          <span className="text-xs text-neutral-400 mt-1 block">
+            {expenses.length} expense items
           </span>
         </div>
       </div>
@@ -232,78 +244,6 @@ export const DashboardPage: React.FC = () => {
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* 4. Campaigns & Expenses Quick Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Campaigns Summary */}
-        <div className="bg-white rounded-2xl border border-neutral-200/90 p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-            <h3 className="text-xs font-bold text-neutral-800">
-              Ad Campaigns ({campaigns.length})
-            </h3>
-            <Link to="/campaigns" className="text-xs font-semibold text-[#FF8C00] hover:underline">
-              View All →
-            </Link>
-          </div>
-          <div className="space-y-2 text-xs">
-            {campaigns.map(c => {
-              const usd = Number(c.ad_spend_usd) || 0;
-              const rate = Number(c.exchange_rate) || exchangeRate;
-              const lkr = Number(c.ad_spend_lkr) > 0 ? Number(c.ad_spend_lkr) : usd * rate;
-
-              return (
-                <div key={c.id} className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-50/80 border border-neutral-100">
-                  <div className="truncate max-w-[240px]">
-                    <span className="font-semibold text-neutral-900 block truncate">
-                      {c.name}
-                    </span>
-                    <span className="text-[10px] text-neutral-400">
-                      {formatDate(c.start_date)}
-                    </span>
-                  </div>
-                  <div className="text-right whitespace-nowrap">
-                    <span className="font-mono font-bold text-neutral-900 text-xs block">
-                      ${usd.toFixed(2)}
-                    </span>
-                    <span className="font-mono text-[10px] text-neutral-500">
-                      {formatLKR(lkr)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Expenses Summary */}
-        <div className="bg-white rounded-2xl border border-neutral-200/90 p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-            <h3 className="text-xs font-bold text-neutral-800">
-              Recent Expenses ({expenses.length})
-            </h3>
-            <Link to="/expenses" className="text-xs font-semibold text-[#FF8C00] hover:underline">
-              View All →
-            </Link>
-          </div>
-          <div className="space-y-2 text-xs">
-            {expenses.map(e => (
-              <div key={e.id} className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-50/80 border border-neutral-100">
-                <div className="truncate max-w-[240px]">
-                  <span className="font-semibold text-neutral-800 block truncate">
-                    {e.description}
-                  </span>
-                  <span className="text-[10px] text-neutral-400 uppercase">
-                    {e.category}
-                  </span>
-                </div>
-                <div className="font-mono font-bold text-neutral-900 text-xs whitespace-nowrap">
-                  {formatLKR(e.amount_lkr || e.amount)}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
