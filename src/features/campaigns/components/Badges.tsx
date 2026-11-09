@@ -102,13 +102,13 @@ export const OrderStatusBadge: React.FC<{ status: OrderStatus; size?: 'sm' | 'md
   status,
   size = 'md',
 }) => {
-  const sizeClasses = size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1';
+  const sizeClasses = size === 'sm' ? 'text-[11px] px-2.5 py-0.5' : 'text-xs px-3 py-1';
 
   switch (status) {
     case 'new':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-blue-50 text-blue-700 border border-blue-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-blue-50 text-blue-700 border border-blue-200/80 ${sizeClasses}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
           New
@@ -118,79 +118,79 @@ export const OrderStatusBadge: React.FC<{ status: OrderStatus; size?: 'sm' | 'md
     case 'pending':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200/80 ${sizeClasses}`}
         >
-          <Clock className="w-3 h-3" />
+          <Clock className="w-3 h-3 stroke-[1.75]" />
           Quotation Pending
         </span>
       );
     case 'confirmed':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-sky-50 text-sky-800 border border-sky-300 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-sky-50 text-sky-700 border border-sky-200/80 ${sizeClasses}`}
         >
-          <CheckCircle2 className="w-3 h-3 text-sky-600" />
+          <CheckCircle2 className="w-3 h-3 stroke-[1.75] text-sky-600" />
           Confirmed
         </span>
       );
     case 'in_progress':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/80 ${sizeClasses}`}
         >
-          <PlayCircle className="w-3 h-3" />
+          <PlayCircle className="w-3 h-3 stroke-[1.75]" />
           In Progress
         </span>
       );
     case 'waiting_for_supplier':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-medium bg-orange-50 text-orange-800 border border-orange-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-orange-50 text-orange-700 border border-orange-200/80 ${sizeClasses}`}
         >
-          <Layers className="w-3 h-3" />
+          <Layers className="w-3 h-3 stroke-[1.75]" />
           Waiting for Supplier
         </span>
       );
     case 'quality_check':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-purple-50 text-purple-700 border border-purple-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-purple-50 text-purple-700 border border-purple-200/80 ${sizeClasses}`}
         >
-          <Check className="w-3 h-3" />
+          <Check className="w-3 h-3 stroke-[1.75]" />
           Quality Check
         </span>
       );
     case 'ready_for_delivery':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-teal-50 text-teal-700 border border-teal-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-teal-50 text-teal-700 border border-teal-200/80 ${sizeClasses}`}
         >
-          <Truck className="w-3 h-3" />
+          <Truck className="w-3 h-3 stroke-[1.75]" />
           Ready for Delivery
         </span>
       );
     case 'completed':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80 ${sizeClasses}`}
         >
-          <CheckCircle2 className="w-3 h-3" />
+          <CheckCircle2 className="w-3 h-3 stroke-[1.75]" />
           Completed
         </span>
       );
     case 'cancelled':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-full font-medium bg-red-50 text-red-700 border border-red-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1.5 rounded-full font-medium bg-rose-50 text-rose-700 border border-rose-200/80 ${sizeClasses}`}
         >
-          <XCircle className="w-3 h-3" />
+          <XCircle className="w-3 h-3 stroke-[1.75]" />
           Cancelled
         </span>
       );
     default:
       return (
         <span
-          className={`inline-flex items-center rounded-full font-medium bg-neutral-100 text-neutral-600 border border-neutral-200 ${sizeClasses}`}
+          className={`inline-flex items-center rounded-full font-medium bg-neutral-100 text-neutral-600 border border-neutral-200/80 ${sizeClasses}`}
         >
           {status}
         </span>
@@ -202,40 +202,40 @@ export const CustomerPaymentBadge: React.FC<{
   status?: CustomerPaymentStatus;
   size?: 'sm' | 'md';
 }> = ({ status = 'unpaid', size = 'sm' }) => {
-  const sizeClasses = size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1';
+  const sizeClasses = size === 'sm' ? 'text-[11px] px-2.5 py-0.5' : 'text-xs px-3 py-1';
 
   switch (status) {
     case 'fully_paid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80 ${sizeClasses}`}
         >
-          <CheckCircle2 className="w-3 h-3" />
+          <CheckCircle2 className="w-3 h-3 stroke-[1.75]" />
           Fully Paid
         </span>
       );
     case 'partially_paid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-semibold bg-amber-100 text-amber-800 border border-amber-300 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-amber-50 text-amber-700 border border-amber-200/80 ${sizeClasses}`}
         >
-          <Clock className="w-3 h-3" />
+          <Clock className="w-3 h-3 stroke-[1.75]" />
           Partially Paid
         </span>
       );
     case 'unpaid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-semibold bg-rose-50 text-rose-700 border border-rose-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-rose-50 text-rose-700 border border-rose-200/80 ${sizeClasses}`}
         >
-          <AlertCircle className="w-3 h-3" />
+          <AlertCircle className="w-3 h-3 stroke-[1.75]" />
           Unpaid
         </span>
       );
     case 'not_invoiced':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-medium bg-neutral-100 text-neutral-600 border border-neutral-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-neutral-100 text-neutral-600 border border-neutral-200/80 ${sizeClasses}`}
         >
           Not Invoiced
         </span>
@@ -243,9 +243,9 @@ export const CustomerPaymentBadge: React.FC<{
     case 'refunded':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-medium bg-purple-50 text-purple-700 border border-purple-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-purple-50 text-purple-700 border border-purple-200/80 ${sizeClasses}`}
         >
-          <RotateCcw className="w-3 h-3" />
+          <RotateCcw className="w-3 h-3 stroke-[1.75]" />
           Refunded
         </span>
       );
@@ -262,31 +262,31 @@ export const SupplierPaymentBadge: React.FC<{
   status?: SupplierPaymentStatus;
   size?: 'sm' | 'md';
 }> = ({ status = 'unpaid', size = 'sm' }) => {
-  const sizeClasses = size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1';
+  const sizeClasses = size === 'sm' ? 'text-[11px] px-2.5 py-0.5' : 'text-xs px-3 py-1';
 
   switch (status) {
     case 'fully_paid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80 ${sizeClasses}`}
         >
-          <Check className="w-3 h-3" />
+          <Check className="w-3 h-3 stroke-[1.75]" />
           Supplier Paid
         </span>
       );
     case 'partially_paid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-medium bg-amber-50 text-amber-700 border border-amber-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-amber-50 text-amber-700 border border-amber-200/80 ${sizeClasses}`}
         >
-          <Clock className="w-3 h-3" />
+          <Clock className="w-3 h-3 stroke-[1.75]" />
           Supplier Partial
         </span>
       );
     case 'pending_cost_confirmation':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-medium bg-purple-50 text-purple-700 border border-purple-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-purple-50 text-purple-700 border border-purple-200/80 ${sizeClasses}`}
         >
           Pending Quote
         </span>
@@ -294,7 +294,7 @@ export const SupplierPaymentBadge: React.FC<{
     case 'unpaid':
       return (
         <span
-          className={`inline-flex items-center gap-1 rounded-md font-medium bg-rose-50 text-rose-700 border border-rose-200 ${sizeClasses}`}
+          className={`inline-flex items-center gap-1 rounded-md font-medium bg-rose-50 text-rose-700 border border-rose-200/80 ${sizeClasses}`}
         >
           Supplier Unpaid
         </span>
