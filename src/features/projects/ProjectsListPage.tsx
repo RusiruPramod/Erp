@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Briefcase,
   Plus,
   Search,
-  ChevronLeft,
-  ChevronRight,
   Edit2,
   Trash2,
   Users,
@@ -19,19 +17,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { TablePagination } from '../../components/ui/TablePagination';
 import { getStatusBadge } from '../../components/ui/Badge';
 import { ProjectFormModal } from './ProjectFormModal';
 import { formatLKR, formatDate } from '../../lib/formatters';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { usePaginatedQuery } from '../../hooks/usePaginatedQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 20;
 
 export const ProjectsListPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTerm = useDebounce(searchInput, 350);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<any | null>(null);
   const [deletingProject, setDeletingProject] = useState<any | null>(null);
@@ -39,41 +40,28 @@ export const ProjectsListPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['projects-list', searchTerm, statusFilter, page],
-    queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return {
-          projects: [],
-          count: 0,
-        };
-      }
-
-      let query = supabase
-        .from('project_summary')
-        .select('*', { count: 'exact' });
-
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,customer_name.ilike.%${searchTerm}%`);
-      }
-
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data: projects, count, error } = await query
-        .order('project_date', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      return { projects: projects || [], count: count || 0 };
-    },
+  const {
+    rows: projects,
+    totalCount,
+    totalPages,
+    page,
+    setPage,
+    resetPage,
+    isLoading,
+    isFetching,
+  } = usePaginatedQuery({
+    queryKeyPrefix: 'projects-list',
+    table: 'project_summary',
+    pageSize: PAGE_SIZE,
+    searchTerm,
+    searchColumns: ['name', 'customer_name'],
+    filters: { status: statusFilter },
+    orderBy: 'project_date',
+    ascending: false,
   });
 
-  const totalPages = Math.ceil((data?.count || 0) / PAGE_SIZE) || 1;
+  // Reset page on filter/search change
+  React.useEffect(() => { resetPage(); }, [searchTerm, statusFilter, resetPage]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -91,8 +79,6 @@ export const ProjectsListPage: React.FC = () => {
       toast.error(err.message || 'Failed to delete project');
     },
   });
-
-  const projects = data?.projects || [];
 
   return (
     <div className="space-y-6">
@@ -121,15 +107,15 @@ export const ProjectsListPage: React.FC = () => {
         <div className="relative flex-1">
           <Input
             placeholder="Search by project or customer..."
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             leftIcon={<Search className="w-4 h-4" />}
             className="h-9 text-xs"
           />
         </div>
         <Select
           value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+          onChange={e => setStatusFilter(e.target.value)}
           className="h-9 text-xs min-w-[130px]"
         >
           <option value="all">All Statuses</option>
@@ -151,7 +137,7 @@ export const ProjectsListPage: React.FC = () => {
           onAction={() => { setProjectToEdit(null); setIsModalOpen(true); }}
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2">
           <Table>
             <TableHeader>
               <TableRow>
@@ -166,7 +152,7 @@ export const ProjectsListPage: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map(p => {
+              {projects.map((p: any) => {
                 const profit = Number(p.my_profit ?? 0);
                 const isLoss = profit < 0;
                 const hasOutsourcer = p.outsourcer_name;
@@ -276,22 +262,14 @@ export const ProjectsListPage: React.FC = () => {
           </Table>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-2 pt-2 text-xs text-neutral-500">
-              <p>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data?.count || 0)} of {data?.count}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span className="px-3 py-1 font-semibold text-neutral-800">{page} / {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            isFetching={isFetching}
+          />
         </div>
       )}
 

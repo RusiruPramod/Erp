@@ -17,13 +17,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { TablePagination } from '../../components/ui/TablePagination';
 import { getStatusBadge } from '../../components/ui/Badge';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { Document as DocumentType, DocumentItem, Customer, Settings, Project } from '../../types';
 import { formatLKR, formatDate } from '../../lib/formatters';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 20;
 
 export const DocumentsListPage: React.FC = () => {
   const navigate = useNavigate();

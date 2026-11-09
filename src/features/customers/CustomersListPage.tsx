@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
   Plus,
@@ -16,15 +16,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { TablePagination } from '../../components/ui/TablePagination';
 import { CustomerFormModal } from './CustomerFormModal';
 import { Customer } from '../../types';
 import { formatPhoneDisplay } from '../../lib/phone';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { usePaginatedQuery } from '../../hooks/usePaginatedQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
 
+const PAGE_SIZE = 20;
+
 export const CustomersListPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTerm = useDebounce(searchInput, 350);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
@@ -32,21 +38,27 @@ export const CustomersListPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: customers = [], isLoading } = useQuery({
-    queryKey: ['customers', searchTerm],
-    queryFn: async () => {
-      if (!isSupabaseConfigured) {
-        return [];
-      }
-      let query = supabase.from('customers').select('*').order('name', { ascending: true });
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
+  const {
+    rows: customers,
+    totalCount,
+    totalPages,
+    page,
+    setPage,
+    resetPage,
+    isLoading,
+    isFetching,
+  } = usePaginatedQuery<Customer>({
+    queryKeyPrefix: 'customers',
+    table: 'customers',
+    pageSize: PAGE_SIZE,
+    searchTerm,
+    searchColumns: ['name', 'company', 'phone'],
+    orderBy: 'name',
+    ascending: true,
   });
+
+  // Reset page when search changes
+  React.useEffect(() => { resetPage(); }, [searchTerm, resetPage]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -95,8 +107,8 @@ export const CustomersListPage: React.FC = () => {
         <div className="relative flex-1 max-w-sm">
           <Input
             placeholder="Search by name, company, or phone..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             leftIcon={<Search className="w-4 h-4" />}
             className="h-9 text-xs"
           />
@@ -118,79 +130,91 @@ export const CustomersListPage: React.FC = () => {
           }}
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer / Company</TableHead>
-              <TableHead>WhatsApp Phone</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map(c => (
-              <TableRow key={c.id}>
-                <TableCell>
-                  <div className="font-bold text-neutral-900">{c.name}</div>
-                  {c.company && (
-                    <div className="text-xs text-neutral-500 font-medium">{c.company}</div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <a
-                    href={`https://wa.me/${c.phone}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 font-mono text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md font-semibold transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{formatPhoneDisplay(c.phone)}</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
-                  </a>
-                </TableCell>
-                <TableCell className="text-xs text-neutral-600">
-                  {c.email ? (
-                    <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 hover:underline">
-                      <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                      {c.email}
-                    </a>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-neutral-600 max-w-xs truncate">
-                  {c.address || '-'}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditingCustomer(c);
-                        setIsModalOpen(true);
-                      }}
-                      title="Edit Customer"
+        <div className="space-y-2">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer / Company</TableHead>
+                <TableHead>WhatsApp Phone</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customers.map(c => (
+                <TableRow key={c.id}>
+                  <TableCell>
+                    <div className="font-bold text-neutral-900">{c.name}</div>
+                    {c.company && (
+                      <div className="text-xs text-neutral-500 font-medium">{c.company}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <a
+                      href={`https://wa.me/${c.phone}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 font-mono text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md font-semibold transition-colors"
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-neutral-600" />
-                    </Button>
-                    {isAdmin && (
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{formatPhoneDisplay(c.phone)}</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </a>
+                  </TableCell>
+                  <TableCell className="text-xs text-neutral-600">
+                    {c.email ? (
+                      <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 hover:underline">
+                        <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                        {c.email}
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-neutral-600 max-w-xs truncate">
+                    {c.address || '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="inline-flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setDeletingCustomer(c)}
-                        title="Delete Customer"
+                        onClick={() => {
+                          setEditingCustomer(c);
+                          setIsModalOpen(true);
+                        }}
+                        title="Edit Customer"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                        <Edit2 className="w-3.5 h-3.5 text-neutral-600" />
                       </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeletingCustomer(c)}
+                          title="Delete Customer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Pagination */}
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            isFetching={isFetching}
+          />
+        </div>
       )}
 
       {/* Customer Form Modal */}
